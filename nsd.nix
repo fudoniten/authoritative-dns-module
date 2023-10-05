@@ -506,13 +506,6 @@ let
       ${stateDir}/zones/${name}.signed &&
     mv -v ${stateDir}/zones/${name}.signed ${stateDir}/zones/${name}
   '';
-  # signZone = name: zone: ''
-  #   ${dnssecTools}/bin/dnssec-keymgr -g ${dnssecTools}/bin/dnssec-keygen -s ${dnssecTools}/bin/dnssec-settime -K ${stateDir}/dnssec -c ${
-  #     policyFile name zone.dnssecPolicy
-  #   } ${name}
-  #   ${dnssecTools}/bin/dnssec-signzone -S -K ${stateDir}/dnssec -o ${name} -O full -N date ${stateDir}/zones/${name}
-  #   ${nsdPkg}/sbin/nsd-checkzone ${name} ${stateDir}/zones/${name}.signed && mv -v ${stateDir}/zones/${name}.signed ${stateDir}/zones/${name}
-  # '';
   policyFile = name: policy:
     pkgs.writeText "${name}.policy" ''
       zone ${name} {
@@ -530,7 +523,6 @@ let
       };
     '';
 in {
-  # options are ordered alphanumerically
   options.services.fudo-nsd = {
 
     enable = mkEnableOption (lib.mdDoc "NSD authoritative DNS server");
@@ -930,7 +922,7 @@ in {
                   @ IN SOA a.ns.example.com. admin.example.com. (
                   ...
                 ''';
-              };
+                  };
               "example.org." = {
                 data = '''
                   $ORIGIN example.org.
@@ -938,9 +930,9 @@ in {
                   @ IN SOA a.ns.example.com. admin.example.com. (
                   ...
                 ''';
+                  };
               };
-            };
-          };
+              };
 
           "example.net." = {
             provideXFR = [ "10.3.2.1 NOKEY" ];
@@ -948,7 +940,7 @@ in {
               ...
             ''';
           };
-        }
+            }
       '';
       description = lib.mdDoc ''
         Define your zones here. Zones can cascade other zones and therefore
