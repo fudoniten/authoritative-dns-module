@@ -22,6 +22,8 @@ let
       > 0;
   };
 
+  maybeString = prefix: mStr: if mStr == null then "" else "${prefix}${mStr}";
+
   mkZoneFileName = name: if name == "." then "root" else name;
 
   # replaces include: directives for keys with fake keys for nsd-checkconf
