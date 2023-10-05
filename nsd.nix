@@ -22,7 +22,7 @@ let
       > 0;
   };
 
-  maybeString = prefix: mStr: if mStr == null then "" else "${prefix}${mStr}";
+  maybeConfig = prefix: x: if x == null then "" else ''${prefix} "${x}"'';
 
   mkZoneFileName = name: if name == "." then "root" else name;
 
@@ -105,7 +105,7 @@ let
       do-ip6:              ${yesOrNo cfg.ipv6}
       ipv6-edns-size:      ${toString cfg.ipv6EDNSSize}
       log-time-ascii:      ${yesOrNo cfg.logTimeAscii}
-      ${maybeString "nsid: " cfg.nsid}
+      ${maybeConfig "nsid: " cfg.nsid}
       port:                ${toString cfg.port}
       reuseport:           ${yesOrNo cfg.reuseport}
       round-robin:         ${yesOrNo cfg.roundRobin}
@@ -115,14 +115,14 @@ let
       tcp-query-count:     ${toString cfg.tcpQueryCount}
       tcp-timeout:         ${toString cfg.tcpTimeout}
       verbosity:           ${toString cfg.verbosity}
-      ${maybeString "version: " cfg.version}
+      ${maybeConfig "version: " cfg.version}
       xfrd-reload-timeout: ${toString cfg.xfrdReloadTimeout}
       zonefiles-check:     ${yesOrNo cfg.zonefilesCheck}
 
-      ${maybeString "rrl-ipv4-prefix-length: " cfg.ratelimit.ipv4PrefixLength}
-      ${maybeString "rrl-ipv6-prefix-length: " cfg.ratelimit.ipv6PrefixLength}
+      ${maybeConfig "rrl-ipv4-prefix-length: " cfg.ratelimit.ipv4PrefixLength}
+      ${maybeConfig "rrl-ipv6-prefix-length: " cfg.ratelimit.ipv6PrefixLength}
       rrl-ratelimit:           ${toString cfg.ratelimit.ratelimit}
-      ${maybeString "rrl-slip: " cfg.ratelimit.slip}
+      ${maybeConfig "rrl-slip: " cfg.ratelimit.slip}
       rrl-size:                ${toString cfg.ratelimit.size}
       rrl-whitelist-ratelimit: ${toString cfg.ratelimit.whitelistRatelimit}
 
@@ -143,7 +143,6 @@ let
   '';
 
   yesOrNo = b: if b then "yes" else "no";
-  maybeString = prefix: x: if x == null then "" else ''${prefix} "${x}"'';
   maybeToString = prefix: x:
     if x == null then "" else "${prefix} ${toString x}";
   forEach = pre: l: concatMapStrings (x: pre + x + "\n") l;
@@ -168,9 +167,9 @@ let
     zone:
       name:         "${name}"
       zonefile:     "${stateDir}/zones/${mkZoneFileName name}"
-      ${maybeString "outgoing-interface: " zone.outgoingInterface}
+      ${maybeConfig "outgoing-interface: " zone.outgoingInterface}
     ${forEach "  rrl-whitelist: " zone.rrlWhitelist}
-      ${maybeString "zonestats: " zone.zoneStats}
+      ${maybeConfig "zonestats: " zone.zoneStats}
 
       ${maybeToString "max-refresh-time: " zone.maxRefreshSecs}
       ${maybeToString "min-refresh-time: " zone.minRefreshSecs}
