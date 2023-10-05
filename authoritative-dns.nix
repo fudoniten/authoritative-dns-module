@@ -72,7 +72,7 @@ in {
       identity = cfg.identity;
       interfaces = cfg.listen-ips;
       stateDirectory = cfg.state-directory;
-      zones = mkAttrs' (dom: domCfg:
+      zones = mapAttrs' (dom: domCfg:
         let zoneCfg = domCfg.zone;
         in nameValuePair "${dom}." {
           dnssec = domCfg.ksk.key-file != null;
