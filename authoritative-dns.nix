@@ -67,21 +67,16 @@ in {
   imports = [ ./nsd.nix ];
 
   config = mkIf cfg.enable {
-    fileSystems."/var/lib/nsd" = {
-      device = cfg.state-directory;
-      options = [ "bind" ];
-    };
-
-    services.nsd = {
+    services.fudo-nsd = {
       enable = true;
       identity = cfg.identity;
       interfaces = cfg.listen-ips;
-      # stateDirectory = cfg.state-directory;
+      stateDirectory = cfg.state-directory;
       zones = mapAttrs' (dom: domCfg:
         let zoneCfg = domCfg.zone;
         in nameValuePair "${dom}." {
           dnssec = domCfg.ksk.key-file != null;
-          # ksk.keyFile = domCfg.ksk.key-file;
+          ksk.keyFile = domCfg.ksk.key-file;
           data = zoneToZonefile cfg.timestamp dom domCfg.zone-definition;
         }) cfg.domains;
     };
