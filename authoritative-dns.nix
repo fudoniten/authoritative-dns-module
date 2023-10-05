@@ -79,8 +79,7 @@ in {
           dnssec = zoneCfg.ksk.key-file != null;
           ksk.keyFile =
             mkIf (zoneCfg.ksk.key-file != null) zoneCfg.ksk.key-file;
-          data = let
-            content = zoneToZonefile cfg.timestamp dom domCfg.zone-definition;
+          data = let content = zoneToZonefile cfg.timestamp dom domCfg.zone;
           in trace content content;
         }) cfg.domains;
     };
