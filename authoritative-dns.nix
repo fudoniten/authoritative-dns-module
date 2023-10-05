@@ -6,6 +6,8 @@ let
 
   zoneOpts = import ./zone-definition.nix { inherit lib; };
 
+  zoneToZonefile = import ./zone-to-zonefile.nix { inherit lib; };
+
   domainOpts = { name, ... }: {
     options = with types; {
       domain = mkOption {
@@ -75,9 +77,13 @@ in {
       zones = mapAttrs' (dom: domCfg:
         let zoneCfg = domCfg.zone;
         in nameValuePair "${dom}." {
-          dnssec = domCfg.ksk.key-file != null;
-          ksk.keyFile = domCfg.ksk.key-file;
-          data = zoneToZonefile cfg.timestamp dom domCfg.zone-definition;
+          dnssec = zoneCfg.ksk.key-file != null;
+          ksk.keyFile =
+            mkIf (zoneCfg.ksk.key-file != null) zoneCfg.ksk.key-file;
+          data = let
+            content = zoneToZonefile cfg.timestamp dom domCfg.zone-definition;
+          in trace content content;
+
         }) cfg.domains;
     };
   };

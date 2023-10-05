@@ -1,9 +1,8 @@
-{ config, lib, pkgs, ... }:
-
-with lib;
+{ lib, ... }:
 
 { timestamp, domain, zone, ... }:
 
+with lib;
 let
   removeBlankLines = str:
     concatStringsSep "\n\n" (filter isString (split ''
