@@ -34,7 +34,7 @@ in {
   options.services.authoritative-dns = with types; {
     enable = mkEnableOption "Enable authoritative DNS service.";
 
-    identity = mkOPtion {
+    identity = mkOption {
       type = str;
       description = "The identity (CH TXT ID.SERVER) of this host.";
     };
