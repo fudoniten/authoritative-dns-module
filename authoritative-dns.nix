@@ -75,8 +75,7 @@ in {
       interfaces = cfg.listen-ips;
       stateDirectory = cfg.state-directory;
       zones = mapAttrs' (dom: domCfg:
-        let zoneCfg = domCfg.zone;
-        in nameValuePair "${dom}." {
+        nameValuePair "${dom}." {
           dnssec = zoneCfg.ksk.key-file != null;
           ksk.keyFile =
             mkIf (zoneCfg.ksk.key-file != null) zoneCfg.ksk.key-file;

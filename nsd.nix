@@ -315,9 +315,10 @@ let
 
       ksk = {
         keyFile = mkOption {
-          type = types.str;
+          type = nullOr types.str;
           description =
             "Location of the zone key-signing key file on the local host.";
+          default = null;
         };
       };
 
@@ -1058,8 +1059,5 @@ in {
         /run/current-system/systemd/bin/systemctl kill -s SIGHUP nsd.service
       '';
     };
-
   };
-
-  meta.maintainers = with lib.maintainers; [ hrdinka ];
 }
