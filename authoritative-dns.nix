@@ -66,7 +66,7 @@ in {
     };
   };
 
-  imports = [ ./nsd.nix ];
+  imports = [ ./nsd.nix ./zone-to-zonefile.nix ];
 
   config = mkIf cfg.enable {
     services.fudo-nsd = {
