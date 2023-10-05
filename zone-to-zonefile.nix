@@ -8,7 +8,6 @@ let
     concatStringsSep "\n\n" (filter isString (split ''
 
 
-
       +'' str));
 
   joinLines = concatStringsSep "\n";
