@@ -74,11 +74,16 @@ in {
       identity = cfg.identity;
       interfaces = cfg.listen-ips;
       stateDirectory = cfg.state-directory;
-      zones = mapAttrs' (dom: domCfg:
-        nameValuePair "${dom}." {
-          dnssec = domCfg.ksk.key-file != null;
-          ksk.keyFile = mkIf (domCfg.ksk.key-file != null) domCfg.ksk.key-file;
-          data = zoneToZonefile cfg.timestamp dom domCfg.zone;
+      zones = mapAttrs' (domain: domainCfg:
+        nameValuePair "${domain}." {
+          dnssec = domainCfg.ksk.key-file != null;
+          ksk.keyFile =
+            mkIf (domainCfg.ksk.key-file != null) domainCfg.ksk.key-file;
+          data = zoneToZonefile {
+            inherit domain;
+            inherit (cfg) timestamp;
+            inherit (domainCfg) zone;
+          };
         }) cfg.domains;
     };
   };
