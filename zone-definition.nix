@@ -75,7 +75,7 @@ let
   zoneOpts = {
     options = with types; {
       hosts = mkOption {
-        attrsOf (submodule networkHostOpts);
+        type = attrsOf (submodule networkHostOpts);
         description = "Hosts on the local network, with relevant settings.";
         default = { };
       };
