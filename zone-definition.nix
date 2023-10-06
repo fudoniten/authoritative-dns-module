@@ -100,7 +100,7 @@ let
         };
       };
 
-      meric-records = mkOption {
+      metric-records = mkOption {
         type = attrsOf (listOf (submodule srvRecordEntry));
         description = "Map of metric types to a list of SRV host records.";
         example = {
