@@ -3,7 +3,7 @@
 with lib;
 let
 
-  networkHostOpts = {
+  networkHostOpts = { name, ... }: {
     options = with types; {
       hostname = mkOption {
         type = str;
