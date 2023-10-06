@@ -87,7 +87,7 @@ let
         "${hostname} IN AAAA ${hostData.ipv6-address}";
       descriptionRecord = optional (hostData.description != null)
         ''${hostname} IN TXT "${hostData.description}"'';
-    in joinLines (aRecord ++ aaaarecord ++ sshfpRecords ++ descriptionRecord);
+    in joinLines (aRecord ++ aaaaRecord ++ sshfpRecords ++ descriptionRecord);
 
   cnameRecord = alias: host: "${alias} IN CNAME ${host}";
 
