@@ -102,8 +102,8 @@ let
 
   domainRecords = domain: zone:
     let
-      defaultHostRecords = optionals (cfg.default-host != null)
-        (makeHostRecords "@" cfg.default-host);
+      defaultHostRecords = optionals (zone.default-host != null)
+        (makeHostRecords "@" zone.default-host);
 
       kerberosRecord = optionalString (zone.gssapi-realm != null)
         ''_kerberos IN TXT "${zone.gssapi-realm}"'';
