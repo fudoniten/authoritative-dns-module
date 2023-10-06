@@ -24,6 +24,11 @@ let
 
   maybeConfig = prefix: x: if x == null then "" else ''${prefix} "${x}"'';
 
+  yesOrNo = b: if b then "yes" else "no";
+  maybeToString = prefix: x:
+    if x == null then "" else "${prefix} ${toString x}";
+  forEach = pre: l: concatMapStrings (x: pre + x + "\n") l;
+
   mkZoneFileName = name: if name == "." then "root" else name;
 
   # replaces include: directives for keys with fake keys for nsd-checkconf
@@ -141,11 +146,6 @@ let
 
     ${cfg.extraConfig}
   '';
-
-  yesOrNo = b: if b then "yes" else "no";
-  maybeToString = prefix: x:
-    if x == null then "" else "${prefix} ${toString x}";
-  forEach = pre: l: concatMapStrings (x: pre + x + "\n") l;
 
   keyConfigFile = concatStrings (mapAttrsToList (keyName: keyOptions: ''
     key:

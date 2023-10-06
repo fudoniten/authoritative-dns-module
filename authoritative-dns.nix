@@ -76,9 +76,8 @@ in {
       stateDirectory = cfg.state-directory;
       zones = mapAttrs' (dom: domCfg:
         nameValuePair "${dom}." {
-          dnssec = zoneCfg.ksk.key-file != null;
-          ksk.keyFile =
-            mkIf (zoneCfg.ksk.key-file != null) zoneCfg.ksk.key-file;
+          dnssec = domCfg.ksk.key-file != null;
+          ksk.keyFile = mkIf (domCfg.ksk.key-file != null) domCfg.ksk.key-file;
           data = let content = zoneToZonefile cfg.timestamp dom domCfg.zone;
           in trace content content;
         }) cfg.domains;
