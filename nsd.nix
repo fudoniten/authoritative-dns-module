@@ -185,7 +185,8 @@ let
     ${forEach "  provide-xfr: " zone.provideXFR}
   '';
 
-  zoneConfigs = zoneConfigs' { } "" { children = cfg.zones; };
+  zoneConfigs =
+    zoneConfigs' { } "" { children = (trace (attrNames cfg.zones) cfg.zones); };
 
   zoneConfigs' = parent: name: zone:
     if !(zone ? children) || zone.children == null || zone.children == { }
