@@ -134,7 +134,7 @@ let
 
       $TTL ${zone.host-record-ttl}
 
-      ${joinLines (mapAttrsToList hostRecords zone.hosts)}
+      ${joinLines (mapAttrsToList makeHostRecords zone.hosts)}
 
       ${joinLines (mapAttrsToList cnameRecord zone.aliases)}
 
