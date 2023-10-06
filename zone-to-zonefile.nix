@@ -54,6 +54,8 @@ let
       lines = splitString "\n" zonedata;
     in concatStringsSep "\n" (map formatter lines);
 
+  isNotNull = o: !isNull o;
+
   hostToFqdn = host:
     if isNotNull (match ".+.$" host) then
       host
