@@ -44,7 +44,7 @@ let
   };
 
   srvRecordEntry = {
-    options = {
+    options = with types; {
       host = mkOption {
         type = str;
         description = "Host providing service.";
