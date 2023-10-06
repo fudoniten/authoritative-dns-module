@@ -91,7 +91,7 @@ let
 
   dmarcRecord = dmarcEmail:
     optionalString (dmarcEmail != null) ''
-      _dmarc IN TXT "v=DMARC1;p=quarantine;sp=quarantine;rua=mailto:${dmarc-email};"'';
+      _dmarc IN TXT "v=DMARC1;p=quarantine;sp=quarantine;rua=mailto:${dmarcEmail};"'';
 
   mxRecords = map (mx: "@ IN MX 10 ${mx}.");
 
