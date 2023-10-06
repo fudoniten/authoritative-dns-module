@@ -115,7 +115,7 @@ let
         zone.subdomains);
 
     in ''
-      $ORIGIN ${domain};
+      $ORIGIN ${domain}.
       $TTL ${zone.default-ttl}
 
       ${joinLines defaultHostRecords}
