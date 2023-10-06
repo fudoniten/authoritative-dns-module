@@ -89,7 +89,7 @@ let
 
   cnameRecord = alias: host: "${alias} IN CNAME ${host}";
 
-  dmarkRecord = dmarcEmail:
+  dmarcRecord = dmarcEmail:
     optionalString (dmarcEmail != null) ''
       _dmarc IN TXT "v=DMARC1;p=quarantine;sp=quarantine;rua=mailto:${dmarc-email};"'';
 
