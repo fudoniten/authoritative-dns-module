@@ -315,7 +315,7 @@ let
 
       ksk = {
         keyFile = mkOption {
-          type = nullOr types.str;
+          type = types.nullOr types.str;
           description =
             "Location of the zone key-signing key file on the local host.";
           default = null;
