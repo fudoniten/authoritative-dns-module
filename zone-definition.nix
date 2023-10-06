@@ -134,7 +134,7 @@ let
         example = [ "some-host IN CNAME target-host" ];
       };
 
-      dmark-report-address = mkOption {
+      dmarc-report-address = mkOption {
         type = nullOr str;
         description = "Email address to recieve DMARC reports, if any.";
         example = "admin-user@domain.com";
