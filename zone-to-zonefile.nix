@@ -5,7 +5,7 @@
 with lib;
 let
   removeBlankLines = str:
-    concatStringsSep "\n\n" (filter isString (split ''
+    concatStringsSep "\n\n" (filter isString (builtins.split ''
 
 
       +'' str));
@@ -28,7 +28,7 @@ let
     let
       lines = splitString "\n" zonedata;
       records = filter isRecord lines;
-      split-records = map recordMatcher records;
+      splitRecords = map recordMatcher records;
       indexStrlen = i: record: stringLength (elemAt record i);
       recordIndexMaxlen = i: maxInt (map (indexStrlen i) splitRecords);
     in recordFormatter (recordIndexMaxlen 0) (recordIndexMaxlen 1);
