@@ -111,8 +111,8 @@ let
         ''_kerberos IN TXT "${zone.gssapi-realm}"'';
 
       subdomainRecords = joinLines (mapAttrsToList
-        (subdom: subdomCfg: domainRecords "${subdom}.${domain}" subdomCfg))
-        zone.subdomains;
+        (subdom: subdomCfg: domainRecords "${subdom}.${domain}" subdomCfg)
+        zone.subdomains);
 
     in ''
       $ORIGIN ${domain};
