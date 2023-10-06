@@ -141,7 +141,7 @@ let
       ${subdomainRecords}
     '';
 
-in removeBlankLinkes (formatZone ''
+in removeBlankLines (formatZone ''
   $ORIGIN ${domain}.
   $TTL ${zone.default-ttl}
 
