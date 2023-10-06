@@ -20,7 +20,7 @@ let
 
   maxInt = foldr (a: b: if (a < b) then b else a) 0;
 
-  recordMatcher = match "^([^;].*) IN ([A-Z][A-Z0-9]*) (.+)$";
+  recordMatcher = builtins.match "^([^;].*) IN ([A-Z][A-Z0-9]*) (.+)$";
 
   isRecord = str: (recordMatcher str) != null;
 
@@ -57,9 +57,9 @@ let
   isNotNull = o: !isNull o;
 
   hostToFqdn = host:
-    if isNotNull (match ".+.$" host) then
+    if isNotNull (builtins.match ".+.$" host) then
       host
-    else if isNotNull (match ".+..+$" host) then
+    else if isNotNull (builtins.match ".+..+$" host) then
       "${host}."
     else if (hasAttr host zone.hosts) then
       "${host}.${domain}."
