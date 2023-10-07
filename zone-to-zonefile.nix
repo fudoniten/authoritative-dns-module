@@ -57,12 +57,14 @@ let
   isNotNull = o: !isNull o;
 
   hostToFqdn = host:
-    if isNotNull (builtins.match "[^.]+\\.$" host) then
-      host
-    else if isNotNull (builtins.match "([^.]+\\.)+[^.]+$" host) then
-      "${host}."
-    else if (hasAttr host zone.hosts) then
+    let hostChars = "[a-zA-Z0-9_-]";
+    in if (hasAttr host zone.hosts) then
       "${host}.${domain}."
+    else if isNotNull (builtins.match "${hostChars}+\\.$" host) then
+      host
+    else if isNotNull
+    (builtins.match "(${hostChars}+\\.)+${hostChars}+$" host) then
+      "${host}."
     else
       abort "unrecognized hostname: ${host}";
 
