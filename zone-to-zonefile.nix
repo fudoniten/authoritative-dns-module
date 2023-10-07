@@ -5,8 +5,10 @@
 with lib;
 let
   removeBlankLines = str:
-    concatStringsSep "\n\n"
-    (filter isString (builtins.split "[\\n][\\n]+" str));
+    concatStringsSep "\n\n" (filter isString (builtins.split ''
+
+
+      +'' str));
 
   joinLines = concatStringsSep "\n";
 
