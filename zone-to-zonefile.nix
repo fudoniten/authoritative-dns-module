@@ -57,9 +57,9 @@ let
   isNotNull = o: !isNull o;
 
   hostToFqdn = host:
-    if isNotNull (builtins.match ".+\\.$" host) then
+    if isNotNull (builtins.match "[^.]+\\.$" host) then
       host
-    else if isNotNull (builtins.match ".+\\..+$" host) then
+    else if isNotNull (builtins.match "[^.]+\\[^.]+$" host) then
       "${host}."
     else if (hasAttr host zone.hosts) then
       "${host}.${domain}."
