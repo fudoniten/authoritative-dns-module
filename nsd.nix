@@ -1023,7 +1023,7 @@ in {
           '';
         };
 
-        services.nsd-dnssec = mkIf dnssec {
+        nsd-dnssec = mkIf dnssec {
           description = "DNSSEC key rollover";
 
           wantedBy = [ "nsd.service" ];
