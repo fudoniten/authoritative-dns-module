@@ -58,7 +58,7 @@ let
 
   hostToFqdn = host:
     let hostChars = "[a-zA-Z0-9_-]";
-    in if isNotNull (builtins.match "^${hostChars}+$") then
+    in if isNotNull (builtins.match "^${hostChars}+$" host) then
       "${host}.${domain}."
     else if isNotNull (builtins.match "${hostChars}+\\.$" host) then
       host
