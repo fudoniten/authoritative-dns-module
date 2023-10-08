@@ -86,7 +86,7 @@ let
   configFile = pkgs.writeTextDir "nsd.conf" ''
     server:
       chroot:   "${stateDir}"
-      username: ${username}
+      username: "${username}"
 
       # The directory for zonefile: files. The daemon chdirs here.
       zonesdir: "${stateDir}"
@@ -978,86 +978,92 @@ in {
       groups."${username}".gid = config.ids.gids.nsd;
     };
 
-    systemd.services.nsd = {
-      description = "NSD authoritative only domain name service";
+    systemd = {
+      services = {
+        nsd = {
+          description = "NSD authoritative only domain name service";
 
-      after = [ "network.target" ];
-      wantedBy = [ "multi-user.target" ];
+          after = [ "network.target" ];
+          wantedBy = [ "multi-user.target" ];
 
-      startLimitBurst = 4;
-      startLimitIntervalSec = 5 * 60; # 5 mins
-      serviceConfig = {
-        ExecStart = "${nsdPkg}/sbin/nsd -d -c ${nsdEnv}/nsd.conf";
-        StandardError = "null";
-        PIDFile = pidFile;
-        Restart = "always";
-        RestartSec = "4s";
-      };
+          startLimitBurst = 4;
+          startLimitIntervalSec = 5 * 60; # 5 mins
+          serviceConfig = {
+            ExecStart = "${nsdPkg}/sbin/nsd -d -c ${nsdEnv}/nsd.conf";
+            StandardError = "null";
+            PIDFile = pidFile;
+            Restart = "always";
+            RestartSec = "4s";
+          };
 
-      preStart = ''
-        rm -Rf "${stateDir}/private/"
-        rm -Rf "${stateDir}/tmp/"
+          preStart = ''
+            rm -Rf "${stateDir}/private/"
+            rm -Rf "${stateDir}/tmp/"
 
-        mkdir -m 0700 -p "${stateDir}/private"
-        mkdir -m 0700 -p "${stateDir}/tmp"
-        mkdir -m 0700 -p "${stateDir}/var"
+            mkdir -m 0700 -p "${stateDir}/private"
+            mkdir -m 0700 -p "${stateDir}/tmp"
+            mkdir -m 0700 -p "${stateDir}/var"
+            mkdir -m 0711 -p "${stateDir}/run"
 
-        cat > "${stateDir}/don't touch anything in here" << EOF
-        Everything in this directory except NSD's state in var and dnssec
-        is automatically generated and will be purged and redeployed by
-        the nsd.service pre-start script.
-        EOF
+            cat > "${stateDir}/don't touch anything in here" << EOF
+            Everything in this directory except NSD's state in var and dnssec
+            is automatically generated and will be purged and redeployed by
+            the nsd.service pre-start script.
+            EOF
 
-        chown ${username}:${username} -R "${stateDir}/private"
-        chown ${username}:${username} -R "${stateDir}/tmp"
-        chown ${username}:${username} -R "${stateDir}/var"
+            chown ${username}:${username} -R "${stateDir}/private"
+            chown ${username}:${username} -R "${stateDir}/tmp"
+            chown ${username}:${username} -R "${stateDir}/var"
+            chown ${username}:${username} -R "${stateDir}/run"
 
-        rm -rf "${stateDir}/zones"
-        cp -rL "${nsdEnv}/zones" "${stateDir}/zones"
+            rm -rf "${stateDir}/zones"
+            cp -rL "${nsdEnv}/zones" "${stateDir}/zones"
 
-        ${copyKeys}
-      '';
-    };
-
-    systemd.timers.nsd-dnssec = mkIf dnssec {
-      description = "Automatic DNSSEC key rollover";
-
-      wantedBy = [ "nsd.service" ];
-      before = [ "nsd.service" ];
-
-      timerConfig = {
-        OnActiveSec = cfg.dnssecInterval;
-        OnUnitActiveSec = cfg.dnssecInterval;
-      };
-    };
-
-    systemd.services.nsd-dnssec = mkIf dnssec {
-      description = "DNSSEC key rollover";
-
-      wantedBy = [ "nsd.service" ];
-      before = [ "nsd.service" ];
-
-      preStart = let
-        zoneRotateCmd = zone:
-          let zoneDir = "${stateDir}/dnssec/${zone}";
-          in ''
-            mkdir -p ${zoneDir}
-            ${pkgs.nsdRotateKeys}/bin/nsd-rotate-keys \
-              --key-directory=${zoneDir} \
-              --validity-period=30 \
-              --period-overlap=10 \
-              --metadata=${zoneDir}/metadata.json \
-              --verbose \
-              ${zone}
+            ${copyKeys}
           '';
-        zoneRotateCmds = map zoneRotateCmd (lib.attrNames dnssecZones);
-      in lib.concatStringsSep "\n" zoneRotateCmds;
+        };
 
-      script = signZones;
+        services.nsd-dnssec = mkIf dnssec {
+          description = "DNSSEC key rollover";
 
-      postStop = ''
-        /run/current-system/systemd/bin/systemctl kill -s SIGHUP nsd.service
-      '';
+          wantedBy = [ "nsd.service" ];
+          before = [ "nsd.service" ];
+
+          preStart = let
+            zoneRotateCmd = zone:
+              let zoneDir = "${stateDir}/dnssec/${zone}";
+              in ''
+                mkdir -p ${zoneDir}
+                ${pkgs.nsdRotateKeys}/bin/nsd-rotate-keys \
+                  --key-directory=${zoneDir} \
+                  --validity-period=30 \
+                  --period-overlap=10 \
+                  --metadata=${zoneDir}/metadata.json \
+                  --verbose \
+                  ${zone}
+              '';
+            zoneRotateCmds = map zoneRotateCmd (lib.attrNames dnssecZones);
+          in lib.concatStringsSep "\n" zoneRotateCmds;
+
+          script = signZones;
+
+          postStop = ''
+            /run/current-system/systemd/bin/systemctl kill -s SIGHUP nsd.service
+          '';
+        };
+      };
+
+      timers.nsd-dnssec = mkIf dnssec {
+        description = "Automatic DNSSEC key rollover";
+
+        wantedBy = [ "nsd.service" ];
+        before = [ "nsd.service" ];
+
+        timerConfig = {
+          OnActiveSec = cfg.dnssecInterval;
+          OnUnitActiveSec = cfg.dnssecInterval;
+        };
+      };
     };
   };
 }
