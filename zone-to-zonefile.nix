@@ -68,8 +68,8 @@ let
     else
       abort "unrecognized hostname: ${host}";
 
-  makeSrvRecords = protocol: service:
-    "records:joinLines" (map (record:
+  makeSrvRecords = protocol: service: records:
+    joinLines (map (record:
       let fqdn = hostToFqdn record.host;
       in "_${service}._${protocol} IN SRV ${toString record.priority} ${
         toString record.weight
