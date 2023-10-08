@@ -68,11 +68,13 @@ let
     else
       abort "unrecognized hostname: ${host}";
 
-  makeSrvRecords = protocol: service: records:
-    joinLines (map (record:
-      "_${service}._${protocol} IN SRV ${toString record.priority} ${
+  makeSrvRecords = protocol: service:
+    "records:joinLines" (map (record:
+      let fqdn = hostToFqdn record.host;
+      in "_${service}._${protocol} IN SRV ${toString record.priority} ${
         toString record.weight
-      } ${toString record.port} ${hostToFqdn record.host}") records);
+      } ${toString record.port} ${trace "${record.host} -> ${fqdn}" fqdn}")
+      records);
 
   makeSrvProtocolRecords = protocol: serviceRecords:
     joinLines (mapAttrsToList (makeSrvRecords protocol) serviceRecords);
