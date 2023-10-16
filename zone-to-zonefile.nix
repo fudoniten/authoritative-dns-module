@@ -73,8 +73,7 @@ let
       let fqdn = hostToFqdn record.host;
       in "_${service}._${protocol} IN SRV ${toString record.priority} ${
         toString record.weight
-      } ${toString record.port} ${trace "${record.host} -> ${fqdn}" fqdn}")
-      records);
+      } ${toString record.port} ${fqdn}") records);
 
   makeSrvProtocolRecords = protocol: serviceRecords:
     joinLines (mapAttrsToList (makeSrvRecords protocol) serviceRecords);
