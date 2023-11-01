@@ -8,6 +8,8 @@ let
 
   zoneToZonefile = import ./zone-to-zonefile.nix { inherit lib; };
 
+  reverseZonefile = import ./reverse-zone.nix { inherit pkgs; };
+
   domainOpts = { name, ... }: {
     options = with types; {
       domain = mkOption {
@@ -28,6 +30,13 @@ let
       zone = mkOption {
         type = submodule zoneOpts;
         description = "Definition of network zone to be served.";
+      };
+
+      reverse-zones = mkOption {
+        type = listOf str;
+        description =
+          "List of subnets for which to generate reverse lookup zones.";
+        default = [ ];
       };
     };
   };
@@ -74,17 +83,27 @@ in {
       identity = cfg.identity;
       interfaces = cfg.listen-ips;
       stateDirectory = cfg.state-directory;
-      zones = mapAttrs' (domain: domainCfg:
-        nameValuePair "${domain}." {
-          dnssec = domainCfg.ksk.key-file != null;
-          ksk.keyFile =
-            mkIf (domainCfg.ksk.key-file != null) domainCfg.ksk.key-file;
-          data = zoneToZonefile {
-            inherit domain;
-            inherit (cfg) timestamp;
-            inherit (domainCfg) zone;
-          };
-        }) cfg.domains;
+      zones = let
+        forwardZones = mapAttrs' (domain: domainCfg:
+          nameValuePair "${domain}." {
+            dnssec = domainCfg.ksk.key-file != null;
+            ksk.keyFile =
+              mkIf (domainCfg.ksk.key-file != null) domainCfg.ksk.key-file;
+            data = zoneToZonefile {
+              inherit domain;
+              inherit (cfg) timestamp;
+              inherit (domainCfg) zone;
+            };
+          }) cfg.domains;
+        reverseZones = concatMapAttrs (domain: domainOpts:
+          genAttrs domainOpts.reverse-zones (network:
+            reverseZonefile {
+              inherit domain network;
+              inherit (domainOpts.zone) nameservers;
+              ipHostMap = cfg.ip-host-map;
+              serial = cfg.timestamp;
+            })) cfg.domains;
+      in forwardZones // reverseZones;
     };
   };
 }
