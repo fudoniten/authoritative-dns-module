@@ -80,17 +80,17 @@ let
 
   makeMetricRecords = metricType: makeSrvRecords "tcp" metricType;
 
-  makeHostRecords = hostname: hostData:
+  makeHostRecords = hostname:
+    { ipv4-address, ipv6-address, sshfp-records, description, ... }:
     let
-      sshfpRecords =
-        map (sshfp: "${hostname} IN SSHFP ${sshfp}") hostData.sshfp-records;
+      sshfpRecords = map (sshfp: "${hostname} IN SSHFP ${sshfp}") sshfp-records;
       aRecord = optional (hostData.ipv4-address != null)
-        "${hostname} IN A ${hostData.ipv4-address}";
+        "${hostname} IN A ${ipv4-address}";
       aaaaRecord = optional (hostData.ipv6-address != null)
-        "${hostname} IN AAAA ${hostData.ipv6-address}";
+        "${hostname} IN AAAA ${ipv6-address}";
       descriptionRecord = optional (hostData.description != null)
-        ''${hostname} IN TXT "${hostData.description}"'';
-    in joinLines (aRecord ++ aaaaRecord ++ sshfpRecords ++ descriptionRecord);
+        ''${hostname} IN TXT "${description}"'';
+    in aRecord ++ aaaaRecord ++ sshfpRecords ++ descriptionRecord;
 
   cnameRecord = alias: host: "${alias} IN CNAME ${host}";
 
