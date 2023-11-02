@@ -121,8 +121,7 @@ let
       $ORIGIN ${domain}.
       $TTL ${zone.default-ttl}
 
-      ${joinLines
-      (map (record: trace "RECORD: ${record}" record) defaultHostRecords)}
+      ${joinLines defaultHostRecords}
 
       ${joinLines (mxRecords zone.mx)}
 
