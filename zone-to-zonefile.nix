@@ -84,12 +84,12 @@ let
     { ipv4-address, ipv6-address, sshfp-records, description, ... }:
     let
       sshfpRecords = map (sshfp: "${hostname} IN SSHFP ${sshfp}") sshfp-records;
-      aRecord = optional (hostData.ipv4-address != null)
-        "${hostname} IN A ${ipv4-address}";
-      aaaaRecord = optional (hostData.ipv6-address != null)
-        "${hostname} IN AAAA ${ipv6-address}";
-      descriptionRecord = optional (hostData.description != null)
-        ''${hostname} IN TXT "${description}"'';
+      aRecord =
+        optional (ipv4-address != null) "${hostname} IN A ${ipv4-address}";
+      aaaaRecord =
+        optional (ipv6-address != null) "${hostname} IN AAAA ${ipv6-address}";
+      descriptionRecord =
+        optional (description != null) ''${hostname} IN TXT "${description}"'';
     in aRecord ++ aaaaRecord ++ sshfpRecords ++ descriptionRecord;
 
   cnameRecord = alias: host: "${alias} IN CNAME ${host}";
