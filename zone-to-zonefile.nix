@@ -98,9 +98,9 @@ let
     optionalString (dmarcEmail != null) ''
       _dmarc IN TXT "v=DMARC1;p=quarantine;sp=quarantine;rua=mailto:${dmarcEmail};"'';
 
-  mxRecords = map (mx: "${domain} IN MX 10 ${mx}.");
+  mxRecords = map (mx: "@ IN MX 10 ${mx}.");
 
-  nsRecords = map (ns-host: "${domain} IN NS ${ns-host}");
+  nsRecords = map (ns-host: "@ IN NS ${ns-host}");
 
   flatmapAttrsToList = f: attrs:
     foldr (a: b: a ++ b) [ ] (mapAttrsToList f attrs);
@@ -108,7 +108,7 @@ let
   domainRecords = domain: zone:
     let
       defaultHostRecords = optionals (zone.default-host != null)
-        (makeHostRecords domain zone.default-host);
+        (makeHostRecords "@" zone.default-host);
 
       kerberosRecord = optionalString (zone.gssapi-realm != null)
         ''_kerberos IN TXT "${zone.gssapi-realm}"'';
