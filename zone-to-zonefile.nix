@@ -90,7 +90,7 @@ let
         optional (ipv6-address != null) "${hostname} IN AAAA ${ipv6-address}";
       descriptionRecord =
         optional (description != null) ''${hostname} IN TXT "${description}"'';
-    in aRecord ++ aaaaRecord ++ sshfpRecords ++ descriptionRecord;
+    in joinLines (aRecord ++ aaaaRecord ++ sshfpRecords ++ descriptionRecord);
 
   cnameRecord = alias: host: "${alias} IN CNAME ${host}";
 
@@ -107,7 +107,7 @@ let
 
   domainRecords = domain: zone:
     let
-      defaultHostRecords = optionals (zone.default-host != null)
+      defaultHostRecords = optionalString (zone.default-host != null)
         (makeHostRecords "@" zone.default-host);
 
       kerberosRecord = optionalString (zone.gssapi-realm != null)
@@ -121,7 +121,7 @@ let
       $ORIGIN ${domain}.
       $TTL ${zone.default-ttl}
 
-      ${joinLines defaultHostRecords}
+      ${defaultHostRecords}
 
       ${joinLines (mxRecords zone.mx)}
 
