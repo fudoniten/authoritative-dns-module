@@ -34,7 +34,7 @@ let
     let
       networkHostsByComponent =
         mapAttrs' (ip: hostname: nameValuePair (getLastIpComponent ip) hostname)
-        (networkHosts network ipHostMap);
+        (getNetworkHosts network ipHostMap);
       ptrEntry = ip: hostname: "#{ip} IN PTR ${hostname}.";
       getHostname = n:
         if hasAttr networkHostsByComponent n then
