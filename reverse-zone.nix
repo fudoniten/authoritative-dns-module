@@ -46,7 +46,7 @@ let
       maxIp = toInt (getLastIpComponent (networkMaxButOneIp network));
     in map (n: ptrEntry n (getHostname (toString n))) (range minIp maxIp);
 
-  nameserverEntries = map (nameserver: "@ IN NS ${nameserver}.") nameservers;
+  nameserverEntries = map (nameserver: "@ IN NS ${nameserver}") nameservers;
 
 in nameValuePair "${getNetworkZoneName network}" {
   dnssec = keyFile != null;
@@ -54,7 +54,7 @@ in nameValuePair "${getNetworkZoneName network}" {
   data = ''
     $ORIGIN ${getNetworkZoneName network}
     $TTL ${toString zoneTTL}
-    @ IN SOA ${head nameservers}. hostmaster.${domain}. (
+    @ IN SOA ${head nameservers} hostmaster.${domain}. (
       ${serial}
       ${toString refresh}
       ${toString retry}
