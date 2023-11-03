@@ -38,7 +38,7 @@ let
       ptrEntry = ip: hostname: "#{ip} IN PTR ${hostname}.";
       getHostname = n:
         if hasAttr n networkHostsByComponent then
-          networkHostByComponent n
+          networkHostsByComponent."${n}"
         else
           "unassigned-${n}.${domain}";
       minIp = toInt (getLastIpComponent (networkMinIp network));
