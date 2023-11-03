@@ -73,6 +73,13 @@ in {
       type = str;
       description = "Timestamp to attach to zone record.";
     };
+
+    ip-host-map = mkOption {
+      type = attrsOf str;
+      description =
+        "Map of IP address to authoritative hostname. Unneeded hosts will be ignored.";
+      default = { };
+    };
   };
 
   imports = [ ./nsd.nix ];
