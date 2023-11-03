@@ -6,7 +6,8 @@
 
 with pkgs.lib;
 let
-  inherit (pkgs.lib.ip) networkMinIp networkMaxButOneIp ipv4OnNetwork;
+  inherit (pkgs.lib.ip)
+    networkMinIp networkMaxButOneIp ipv4OnNetwork getNetworkMask getNetworkBase;
 
   range = base: top:
     assert base < top;
@@ -22,8 +23,8 @@ let
   getNetworkZoneName = network:
     let
       netElems = splitString "/" network;
-      netIp = elemAt netElems 0;
-      netMask = elemAt netElems 1;
+      netIp = getNetworkBase network;
+      netMask = getNetworkMask network;
       reversedNetIp =
         concatStringsSep "." (tail (reverseList (splitString "." netIp)));
     in if netMask == "24" then
