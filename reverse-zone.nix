@@ -14,7 +14,7 @@ let
         if base == top then [ ] else [ base ] ++ (rangeFun (base + 1) top);
     in rangeFun base top;
 
-  getNetworkHosts = network: selectAttrs (ip: _: ipv4OnNetwork ip network);
+  getNetworkHosts = network: filterAttrs (ip: _: ipv4OnNetwork ip network);
 
   getLastIpComponent = ip: head (reverseList (splitString "." ip));
 
