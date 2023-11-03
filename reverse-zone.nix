@@ -14,8 +14,7 @@ let
         if base == top then [ ] else [ base ] ++ (rangeFun (base + 1) top);
     in rangeFun base top;
 
-  getNetworkHosts = network:
-    filterAttrs (ip: _: ipv4OnNetwork ip (trace "NETWORK: ${network}" network));
+  getNetworkHosts = network: filterAttrs (ip: _: ipv4OnNetwork ip network);
 
   getLastIpComponent = ip: head (reverseList (splitString "." ip));
 
@@ -38,7 +37,7 @@ let
         (getNetworkHosts network ipHostMap);
       ptrEntry = ip: hostname: "#{ip} IN PTR ${hostname}.";
       getHostname = n:
-        if hasAttr networkHostsByComponent n then
+        if hasAttr n networkHostsByComponent then
           networkHostByComponent n
         else
           "unassigned-${n}.${domain}";
