@@ -27,10 +27,12 @@ let
       netMask = getNetworkMask network;
       reversedNetIp =
         concatStringsSep "." (tail (reverseList (splitString "." netIp)));
-    in if netMask == "24" then
+    in if netMask == 24 then
       "${reversedNetIp}.in-addr.arpa."
     else
-      "${getLastIpComponent netIp}-${netMask}.${reversedNetIp}.in-addr.arpa.";
+      "${getLastIpComponent netIp}-${
+        toString netMask
+      }.${reversedNetIp}.in-addr.arpa.";
 
   generateReverseZoneEntries = network: domain: ipHostMap:
     let
