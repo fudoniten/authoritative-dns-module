@@ -1,7 +1,8 @@
 { pkgs, ... }:
 
-{ domain, network, nameservers, ipHostMap, serial, zoneTTL ? 10800
-, refresh ? 3600, retry ? 1800, expire ? 604800, minimum ? 3600 }:
+{ domain, network, nameservers, ipHostMap, serial, keyFile ? null
+, zoneTTL ? 10800, refresh ? 3600, retry ? 1800, expire ? 604800, minimum ? 3600
+}:
 
 with pkgs.lib;
 let
@@ -47,16 +48,21 @@ let
 
   nameserverEntries = map (nameserver: "@ IN NS ${nameserver}.") nameservers;
 
-in nameValuePair "${getNetworkZoneName network}" ''
-  $ORIGIN ${getNetworkZoneName network}
-  $TTL ${toString zoneTTL}
-  @ IN SOA ${head nameservers}. hostmaster.${domain}. (
-    ${serial}
-    ${toString refresh}
-    ${toString retry}
-    ${toString expire}
-    ${toString minimum}
-  )
-  ${concatStringsSep "\n" nameserverEntries}
-  ${concatStringsSep "\n" (generateReverseZoneEntries network domain ipHostMap)}
-''
+in nameValuePair "${getNetworkZoneName network}" {
+  dnssec = keyFile != null;
+  ksk.keyFile = keyFile;
+  data = ''
+    $ORIGIN ${getNetworkZoneName network}
+    $TTL ${toString zoneTTL}
+    @ IN SOA ${head nameservers}. hostmaster.${domain}. (
+      ${serial}
+      ${toString refresh}
+      ${toString retry}
+      ${toString expire}
+      ${toString minimum}
+    )
+    ${concatStringsSep "\n" nameserverEntries}
+    ${concatStringsSep "\n"
+    (generateReverseZoneEntries network domain ipHostMap)}
+  '';
+}

@@ -102,11 +102,13 @@ in {
               inherit (domainCfg) zone;
             };
           }) cfg.domains;
-        reverseZones = concatMapAttrs (domain: domainOpts:
+        reverseZones = concatMapAttrs (domain:
+          { ksk, zone, ... }:
           listToAttrs (map (network:
             reverseZonefile {
-              inherit domain network;
-              inherit (domainOpts.zone) nameservers;
+              inherit domain network ksk;
+              inherit (zone) nameservers;
+              keyFile = ksk.key-file;
               ipHostMap = cfg.ip-host-map;
               serial = cfg.timestamp;
             }) domainOpts.reverse-zones)) cfg.domains;
