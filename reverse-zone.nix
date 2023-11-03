@@ -5,7 +5,7 @@
 
 with pkgs.lib;
 let
-  inherit (pkgs.lib.ip) networkMinIp neworkMaxButOneIp ipv4OnNetwork;
+  inherit (pkgs.lib.ip) networkMinIp networkMaxButOneIp ipv4OnNetwork;
 
   range = base: top:
     assert base < top;
