@@ -106,7 +106,7 @@ in {
           { ksk, zone, reverse-zones, ... }:
           listToAttrs (map (network:
             reverseZonefile {
-              inherit domain network ksk;
+              inherit domain network;
               inherit (zone) nameservers;
               keyFile = ksk.key-file;
               ipHostMap = cfg.ip-host-map;
