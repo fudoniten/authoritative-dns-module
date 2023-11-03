@@ -96,13 +96,13 @@ in {
             };
           }) cfg.domains;
         reverseZones = concatMapAttrs (domain: domainOpts:
-          genAttrs domainOpts.reverse-zones (network:
+          listToAttrs (map (network:
             reverseZonefile {
               inherit domain network;
               inherit (domainOpts.zone) nameservers;
               ipHostMap = cfg.ip-host-map;
               serial = cfg.timestamp;
-            })) cfg.domains;
+            }) domainOpts.reverse-zones)) cfg.domains;
       in forwardZones // reverseZones;
     };
   };
