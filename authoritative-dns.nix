@@ -91,19 +91,19 @@ in {
       interfaces = cfg.listen-ips;
       stateDirectory = cfg.state-directory;
       zones = let
-        forwardZones = mapAttrs' (domain: domainCfg:
+        forwardZones = mapAttrs' (domain:
+          { ksk, zone, ... }:
           nameValuePair "${domain}." {
-            dnssec = domainCfg.ksk.key-file != null;
-            ksk.keyFile =
-              mkIf (domainCfg.ksk.key-file != null) domainCfg.ksk.key-file;
+            dnssec = ksk.key-file != null;
+            ksk.keyFile = ksk.key-file;
             data = zoneToZonefile {
               inherit domain;
               inherit (cfg) timestamp;
-              inherit (domainCfg) zone;
+              inherit zone;
             };
           }) cfg.domains;
         reverseZones = concatMapAttrs (domain:
-          { ksk, zone, ... }:
+          { ksk, zone, reverse-zones, ... }:
           listToAttrs (map (network:
             reverseZonefile {
               inherit domain network ksk;
@@ -111,7 +111,7 @@ in {
               keyFile = ksk.key-file;
               ipHostMap = cfg.ip-host-map;
               serial = cfg.timestamp;
-            }) domainOpts.reverse-zones)) cfg.domains;
+            }) reverse-zones)) cfg.domains;
       in forwardZones // reverseZones;
     };
   };
