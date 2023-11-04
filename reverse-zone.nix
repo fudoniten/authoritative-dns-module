@@ -13,7 +13,7 @@ let
     assert base < top;
     let
       rangeFun = base: top:
-        if base == top then [ ] else [ base ] ++ (rangeFun (base + 1) top);
+        if base == top then [ base ] else [ base ] ++ (rangeFun (base + 1) top);
     in rangeFun base top;
 
   getNetworkHosts = network: filterAttrs (ip: _: ipv4OnNetwork ip network);
