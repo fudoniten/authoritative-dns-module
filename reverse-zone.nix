@@ -7,7 +7,7 @@
 with pkgs.lib;
 let
   inherit (pkgs.lib.ip)
-    networkMinIp networkMaxButOneIp ipv4OnNetwork getNetworkMask getNetworkBase;
+    networkMinIp networkMaxIp ipv4OnNetwork getNetworkMask getNetworkBase;
 
   range = base: top:
     assert base < top;
@@ -46,7 +46,7 @@ let
         else
           "unassigned-${n}.${domain}";
       minIp = toInt (getLastIpComponent (networkMinIp network));
-      maxIp = toInt (getLastIpComponent (networkMaxButOneIp network));
+      maxIp = toInt (getLastIpComponent (networkMaxIp network));
     in map (n: ptrEntry n (getHostname (toString n))) (range minIp maxIp);
 
   nameserverEntries = map (nameserver: "@ IN NS ${nameserver}") nameservers;
