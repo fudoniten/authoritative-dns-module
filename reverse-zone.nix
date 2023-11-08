@@ -54,6 +54,8 @@ let
 in nameValuePair "${getNetworkZoneName network}" {
   dnssec = keyFile != null;
   ksk.keyFile = keyFile;
+  provideXFR = map (ns: "${ns}/32 NOKEY") nameservers;
+  notify = map (ns: "${ns} NOKEY") nameservers;
   data = ''
     $ORIGIN ${getNetworkZoneName network}
     $TTL ${toString zoneTTL}
