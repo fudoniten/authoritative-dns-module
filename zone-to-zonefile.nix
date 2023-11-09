@@ -78,7 +78,11 @@ let
   makeSrvProtocolRecords = protocol: serviceRecords:
     joinLines (mapAttrsToList (makeSrvRecords protocol) serviceRecords);
 
-  makeMetricRecords = metricType: makeSrvRecords "tcp" metricType;
+  makeMetricRecords = metricType: records:
+    joinLines (map (record:
+      "${metricType}._metrics._tcp IN SRV ${toString record.priority} ${
+        toString record.weight
+      } ${toString record.port} ${hostToFqdn record.host}") records);
 
   makeHostRecords = hostname:
     { ipv4-address, ipv6-address, sshfp-records, description, ... }:
