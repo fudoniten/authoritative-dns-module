@@ -106,14 +106,13 @@ in {
       stateDirectory = cfg.state-directory;
       zones = let
         forwardZones = mapAttrs' (domain:
-          { ksk, zone, ... }:
+          { ksk, zone, notify, ... }:
           nameValuePair "${domain}." {
             dnssec = ksk.key-file != null;
             ksk.keyFile = ksk.key-file;
-            provideXFR = (map (ns: "${ns}/32 NOKEY") zone.notify.ipv4)
-              ++ (map (ns: "${ns}/64 NOKEY") zone.notify.ipv6);
-            notify =
-              map (ns: "${ns} NOKEY") (zone.notify.ipv4 ++ zone.notify.ipv6);
+            provideXFR = (map (ns: "${ns}/32 NOKEY") notify.ipv4)
+              ++ (map (ns: "${ns}/64 NOKEY") notify.ipv6);
+            notify = map (ns: "${ns} NOKEY") (notify.ipv4 ++ notify.ipv6);
             data = zoneToZonefile {
               inherit domain;
               inherit (cfg) timestamp;
@@ -121,11 +120,11 @@ in {
             };
           }) cfg.domains;
         reverseZones = concatMapAttrs (domain:
-          { ksk, zone, reverse-zones, ... }:
+          { ksk, zone, reverse-zones, notify, ... }:
           listToAttrs (map (network:
             reverseZonefile {
-              inherit domain network;
-              inherit (zone) nameservers notify;
+              inherit domain network notify;
+              inherit (zone) nameservers;
               keyFile = ksk.key-file;
               ipHostMap = cfg.ip-host-map;
               serial = cfg.timestamp;
