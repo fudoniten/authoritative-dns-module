@@ -1,6 +1,6 @@
 { pkgs, ... }:
 
-{ domain, network, nameservers, ipHostMap, serial, keyFile ? null
+{ domain, network, nameservers, notify-ips, ipHostMap, serial, keyFile ? null
 , zoneTTL ? 10800, refresh ? 3600, retry ? 1800, expire ? 604800, minimum ? 3600
 }:
 
@@ -54,8 +54,8 @@ let
 in nameValuePair "${getNetworkZoneName network}" {
   dnssec = keyFile != null;
   ksk.keyFile = keyFile;
-  provideXFR = map (ns: "${ns}/32 NOKEY") nameservers;
-  notify = map (ns: "${ns} NOKEY") nameservers;
+  provideXFR = map (ns: "${ns}/32 NOKEY") notify-ips;
+  notify = map (ns: "${ns} NOKEY") notify-ips;
   data = ''
     $ORIGIN ${getNetworkZoneName network}
     $TTL ${toString zoneTTL}

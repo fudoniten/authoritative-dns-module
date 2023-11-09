@@ -38,6 +38,12 @@ let
           "List of subnets for which to generate reverse lookup zones.";
         default = [ ];
       };
+
+      notify-ips = mkOption {
+        type = listOf str;
+        description = "List of IP addresses to notify of changes.";
+        default = [ ];
+      };
     };
   };
 
@@ -96,8 +102,8 @@ in {
           nameValuePair "${domain}." {
             dnssec = ksk.key-file != null;
             ksk.keyFile = ksk.key-file;
-            provideXFR = map (ns: "${ns}/32 NOKEY") zone.nameservers;
-            notify = map (ns: "${ns} NOKEY") zone.nameservers;
+            provideXFR = map (ns: "${ns}/32 NOKEY") zone.notify-ips;
+            notify = map (ns: "${ns} NOKEY") zone.notify-ips;
             data = zoneToZonefile {
               inherit domain;
               inherit (cfg) timestamp;
@@ -109,7 +115,7 @@ in {
           listToAttrs (map (network:
             reverseZonefile {
               inherit domain network;
-              inherit (zone) nameservers;
+              inherit (zone) nameservers notify-ips;
               keyFile = ksk.key-file;
               ipHostMap = cfg.ip-host-map;
               serial = cfg.timestamp;
