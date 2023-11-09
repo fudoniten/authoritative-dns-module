@@ -39,10 +39,18 @@ let
         default = [ ];
       };
 
-      notify-ips = mkOption {
-        type = listOf str;
-        description = "List of IP addresses to notify of changes.";
-        default = [ ];
+      notify = {
+        ipv4 = mkOption {
+          type = listOf str;
+          description = "List of IPv4 addresses to notify of changes.";
+          default = [ ];
+        };
+
+        ipv6 = mkOption {
+          type = listOf str;
+          description = "List of IPv6 addresses to notify of changes.";
+          default = [ ];
+        };
       };
     };
   };
@@ -102,8 +110,10 @@ in {
           nameValuePair "${domain}." {
             dnssec = ksk.key-file != null;
             ksk.keyFile = ksk.key-file;
-            provideXFR = map (ns: "${ns}/32 NOKEY") zone.notify-ips;
-            notify = map (ns: "${ns} NOKEY") zone.notify-ips;
+            provideXFR = (map (ns: "${ns}/32 NOKEY") zone.notify.ipv4)
+              ++ (map (ns: "${ns}/64 NOKEY") zone.notify.ipv6);
+            notify =
+              map (ns: "${ns} NOKEY") (zone.notify.ipv4 ++ zone.notify.ipv6);
             data = zoneToZonefile {
               inherit domain;
               inherit (cfg) timestamp;
@@ -115,7 +125,7 @@ in {
           listToAttrs (map (network:
             reverseZonefile {
               inherit domain network;
-              inherit (zone) nameservers notify-ips;
+              inherit (zone) nameservers notify;
               keyFile = ksk.key-file;
               ipHostMap = cfg.ip-host-map;
               serial = cfg.timestamp;
