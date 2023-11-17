@@ -6,7 +6,7 @@
 
 with pkgs.lib;
 let
-  inherit (pkgs.lib.fudo.ip)
+  inherit (pkgs.lib.ip)
     networkMinIp networkMaxIp ipv4OnNetwork getNetworkMask getNetworkBase;
 
   range = base: top:
