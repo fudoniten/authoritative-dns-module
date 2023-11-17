@@ -1,0 +1,42 @@
+{
+  "nodes": {
+    "fudo-lib": {
+      "locked": {
+        "lastModified": 1700242449,
+        "narHash": "sha256-LfetCw18YI5SFAWSHzKcZq4G1ClwiKBh4qhxZcj7IWQ=",
+        "ref": "refs/heads/master",
+        "rev": "04263beb7f170a1c535832461901173410ca81d8",
+        "revCount": 176,
+        "type": "git",
+        "url": "https://git.fudo.org/fudo-nix/lib.git"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://git.fudo.org/fudo-nix/lib.git"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1700097215,
+        "narHash": "sha256-ODQ3gBTv1iHd7lG21H+ErVISB5wVeOhd/dEogOqHs/I=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "9fb122519e9cd465d532f736a98c1e1eb541ef6f",
+        "type": "github"
+      },
+      "original": {
+        "id": "nixpkgs",
+        "ref": "nixos-23.05",
+        "type": "indirect"
+      }
+    },
+    "root": {
+      "inputs": {
+        "fudo-lib": "fudo-lib",
+        "nixpkgs": "nixpkgs"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
