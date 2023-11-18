@@ -60,7 +60,8 @@ let
     let hostChars = "[a-zA-Z0-9_-]";
     in if isNotNull (builtins.match "^${hostChars}+$" host) then
       "${host}.${domain}."
-    else if isNotNull (builtins.match "${hostChars}+\\.$" host) then
+    else if isNotNull
+    (builtins.match "(${hostChars}+\\.)+${hostChars}+\\.$" host) then
       host
     else if isNotNull
     (builtins.match "(${hostChars}+\\.)+${hostChars}+$" host) then
