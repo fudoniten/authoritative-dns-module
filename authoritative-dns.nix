@@ -94,6 +94,12 @@ in {
         "Map of IP address to authoritative hostname. Unneeded hosts will be ignored.";
       default = { };
     };
+
+    mirrored-domains = mkOption {
+      type = attrsOf str;
+      description = "Map of domain name to primary server IP.";
+      default = { };
+    };
   };
 
   imports = [ ./nsd.nix ];
@@ -129,6 +135,10 @@ in {
               ipHostMap = cfg.ip-host-map;
               serial = cfg.timestamp;
             }) reverse-zones)) cfg.domains;
+        secondaryZones = mapAttrs (domain: masterIp: {
+          allowNotify = "${masterIp}/32";
+          requestXFR = "AXFR ${masterIp} NOKEY";
+        }) cfg.mirrored-domains;
       in forwardZones // reverseZones;
     };
   };
