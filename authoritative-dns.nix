@@ -102,14 +102,19 @@ in {
     };
   };
 
-  imports = [ ./nsd.nix ];
+  # imports = [ ./nsd.nix ];
 
   config = mkIf cfg.enable {
-    services.fudo-nsd = {
+    fileSystems."/var/lib/nsd" = {
+      device = cfg.state-directory;
+      options = [ "bind" ];
+    };
+
+    services.nsd = {
       enable = true;
       identity = cfg.identity;
       interfaces = cfg.listen-ips;
-      stateDirectory = cfg.state-directory;
+      # stateDirectory = cfg.state-directory;
       zones = let
         forwardZones = mapAttrs' (domain:
           { ksk, zone, notify, ... }:
