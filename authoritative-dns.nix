@@ -131,7 +131,6 @@ in {
             reverseZonefile {
               inherit domain network notify;
               inherit (zone) nameservers;
-              keyFile = ksk.key-file;
               ipHostMap = cfg.ip-host-map;
               serial = cfg.timestamp;
             }) reverse-zones)) cfg.domains;
