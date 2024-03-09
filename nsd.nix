@@ -979,6 +979,8 @@ in {
     };
 
     systemd = {
+      tmpfiles.rules = [ "d ${stateDir} ${username} ${username} 0700 - -" ];
+
       services = {
         nsd = {
           description = "NSD authoritative only domain name service";
