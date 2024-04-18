@@ -979,7 +979,7 @@ in {
     };
 
     systemd = {
-      tmpfiles.rules = [ "d ${stateDir} ${username} ${username} 0700 - -" ];
+      tmpfiles.rules = [ "d ${stateDir} 0700 ${username} - - -" ];
 
       services = {
         nsd = {
