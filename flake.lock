@@ -2,26 +2,26 @@
   "nodes": {
     "fudo-lib": {
       "locked": {
-        "lastModified": 1700242449,
-        "narHash": "sha256-LfetCw18YI5SFAWSHzKcZq4G1ClwiKBh4qhxZcj7IWQ=",
+        "lastModified": 1709939497,
+        "narHash": "sha256-+i2NXUV13PTV2ebxzgJughpkOdx9WvXdB8AZP7lHbzY=",
         "ref": "refs/heads/master",
-        "rev": "04263beb7f170a1c535832461901173410ca81d8",
-        "revCount": 176,
+        "rev": "e6109489d41c117e6c346db41826dcf969529a22",
+        "revCount": 227,
         "type": "git",
-        "url": "https://git.fudo.org/fudo-nix/lib.git"
+        "url": "https://fudo.dev/nix/lib.git"
       },
       "original": {
         "type": "git",
-        "url": "https://git.fudo.org/fudo-nix/lib.git"
+        "url": "https://fudo.dev/nix/lib.git"
       }
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1700097215,
-        "narHash": "sha256-ODQ3gBTv1iHd7lG21H+ErVISB5wVeOhd/dEogOqHs/I=",
+        "lastModified": 1704290814,
+        "narHash": "sha256-LWvKHp7kGxk/GEtlrGYV68qIvPHkU9iToomNFGagixU=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "9fb122519e9cd465d532f736a98c1e1eb541ef6f",
+        "rev": "70bdadeb94ffc8806c0570eb5c2695ad29f0e421",
         "type": "github"
       },
       "original": {
