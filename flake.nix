@@ -3,7 +3,7 @@
 
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-23.05";
-    fudo-lib.url = "git+https://fudo.dev/nix/lib.git";
+    fudo-lib.url = "github:fudoniten/fudo-nix-lib";
   };
 
   outputs = { self, nixpkgs, fudo-lib, ... }: {
