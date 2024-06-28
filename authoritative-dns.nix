@@ -137,6 +137,7 @@ in {
         secondaryZones = mapAttrs (domain: masterIp: {
           allowNotify = "${masterIp}/32";
           requestXFR = "AXFR ${masterIp} NOKEY";
+          outgoingInterface = head cfg.listen-ips;
         }) cfg.mirrored-domains;
       in forwardZones // reverseZones;
     };
