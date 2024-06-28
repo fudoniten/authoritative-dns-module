@@ -135,7 +135,7 @@ in {
               serial = cfg.timestamp;
             }) reverse-zones)) cfg.domains;
         secondaryZones = mapAttrs (domain: masterIp: {
-          allowNotify = "${masterIp}/32";
+          allowNotify = [ "${masterIp}/32" ];
           requestXFR = "AXFR ${masterIp} NOKEY";
           outgoingInterface = head cfg.listen-ips;
         }) cfg.mirrored-domains;
