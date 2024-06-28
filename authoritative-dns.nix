@@ -119,11 +119,13 @@ in {
             provideXFR = (map (ns: "${ns}/32 NOKEY") notify.ipv4)
               ++ (map (ns: "${ns}/64 NOKEY") notify.ipv6);
             notify = map (ns: "${ns} NOKEY") (notify.ipv4 ++ notify.ipv6);
-            data = zoneToZonefile {
-              inherit domain;
-              inherit (cfg) timestamp;
-              inherit zone;
-            };
+            data = let
+              zoneData = zoneToZonefile {
+                inherit domain;
+                inherit (cfg) timestamp;
+                inherit zone;
+              };
+            in trace zoneData zoneData;
           }) cfg.domains;
         reverseZones = concatMapAttrs (domain:
           { ksk, zone, reverse-zones, notify, ... }:
