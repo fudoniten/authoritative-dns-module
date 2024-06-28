@@ -167,7 +167,6 @@ let
     zone:
       name:         "${name}"
       zonefile:     "${stateDir}/zones/${mkZoneFileName name}"
-      ${maybeConfig "outgoing-interface: " zone.outgoingInterface}
     ${forEach "  rrl-whitelist: " zone.rrlWhitelist}
       ${maybeConfig "zonestats: " zone.zoneStats}
 
