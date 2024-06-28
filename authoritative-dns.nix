@@ -139,7 +139,17 @@ in {
         secondaryZones = mapAttrs (domain: masterIp: {
           allowNotify = [ "${masterIp}/32" ];
           requestXFR = [ "AXFR ${masterIp} NOKEY" ];
-          zonefilesCheck = false;
+          data = ''
+            $ORIGIN ${domain}.
+            $TTL 3h
+
+            @ IN SOA ns1.${domain}. hostmaster.${domain}. (
+              ${toString cfg.timestamp}
+              30m
+              2m
+              3w
+              5m)
+          '';
         }) cfg.mirrored-domains;
       in forwardZones // reverseZones // secondaryZones;
     };
