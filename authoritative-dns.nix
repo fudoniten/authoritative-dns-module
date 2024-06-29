@@ -137,8 +137,8 @@ in {
               serial = cfg.timestamp;
             }) reverse-zones)) cfg.domains;
         secondaryZones = mapAttrs (domain: masterIp: {
-          allowNotify = [ "${masterIp}/32" ];
-          requestXFR = [ "${masterIp}/32 NOKEY" ];
+          allowNotify = [ "${masterIp}" ];
+          requestXFR = [ "${masterIp} NOKEY" ];
           allowAXFRFallback = true;
           # Bare-bones zone definition prior to getting full records
           data = ''
