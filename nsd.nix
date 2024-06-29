@@ -24,7 +24,8 @@ let
 
   maybeConfig = prefix: x: if x == null then "" else ''${prefix} "${x}"'';
 
-  maybeIntConfig = prefix: x: if x == null then "" else "${prefix} ${x}";
+  maybeIntConfig = prefix: x:
+    if x == null then "" else "${prefix} ${toString x}";
 
   yesOrNo = b: if b then "yes" else "no";
   maybeToString = prefix: x:
