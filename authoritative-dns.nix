@@ -138,7 +138,8 @@ in {
             }) reverse-zones)) cfg.domains;
         secondaryZones = mapAttrs (domain: masterIp: {
           allowNotify = [ "${masterIp}/32" ];
-          # requestXFR = [ "${masterIp} NOKEY" ];
+          requestXFR = [ "${masterIp} NOKEY" ];
+          allowAXFRFallback = true;
           data = ''
             $ORIGIN ${domain}.
             $TTL 3h
