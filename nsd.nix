@@ -22,7 +22,8 @@ let
       > 0;
   };
 
-  maybeConfig = prefix: x: if x == null then "" else ''${prefix} "${x}"'';
+  maybeConfig = prefix: x:
+    if x == null then "" else ''${prefix} "${toString x}"'';
 
   yesOrNo = b: if b then "yes" else "no";
   maybeToString = prefix: x:
@@ -181,7 +182,7 @@ let
     ${forEach "  request-xfr: " zone.requestXFR}
 
     ${forEach "  notify: " zone.notify}
-      notify-retry:                        ${toString zone.notifyRetry}
+    ${maybeConfig "notify-retry: " zone.notifyRetry}
     ${forEach "  provide-xfr: " zone.provideXFR}
   '';
 
