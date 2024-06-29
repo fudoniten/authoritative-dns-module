@@ -381,8 +381,8 @@ let
       };
 
       notifyRetry = mkOption {
-        type = types.int;
-        default = 5;
+        type = types.nullOr types.int;
+        default = null;
         description = lib.mdDoc ''
           Specifies the number of retries for failed notifies. Set this along with notify.
         '';

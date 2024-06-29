@@ -119,6 +119,7 @@ in {
             provideXFR = (map (ns: "${ns}/32 NOKEY") notify.ipv4)
               ++ (map (ns: "${ns}/64 NOKEY") notify.ipv6);
             notify = map (ns: "${ns} NOKEY") (notify.ipv4 ++ notify.ipv6);
+            notifyRetry = 5;
             data = let
               zoneData = zoneToZonefile {
                 inherit domain;
