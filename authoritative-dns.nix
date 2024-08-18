@@ -77,6 +77,12 @@ in {
       default = [ ];
     };
 
+    listen-port = mkOption {
+      type = port;
+      description = "Port on which to listen for IP requests.";
+      default = 53;
+    };
+
     state-directory = mkOption {
       type = str;
       description =
@@ -109,6 +115,7 @@ in {
       enable = true;
       identity = cfg.identity;
       interfaces = cfg.listen-ips;
+      port = cfg.listen-port;
       stateDirectory = cfg.state-directory;
       zones = let
         forwardZones = mapAttrs' (domain:
