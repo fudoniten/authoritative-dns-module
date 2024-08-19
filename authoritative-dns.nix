@@ -106,6 +106,12 @@ in {
       description = "Map of domain name to primary server IP.";
       default = { };
     };
+
+    trusted-networks = mkOption {
+      type = listOf str;
+      description = "List of whitelisted networks for transfers.";
+      default = [ ];
+    };
   };
 
   imports = [ ./nsd.nix ];
@@ -124,7 +130,8 @@ in {
             dnssec = ksk.key-file != null;
             ksk.keyFile = ksk.key-file;
             provideXFR = (map (ns: "${ns}/32 NOKEY") notify.ipv4)
-              ++ (map (ns: "${ns}/64 NOKEY") notify.ipv6);
+              ++ (map (ns: "${ns}/64 NOKEY") notify.ipv6)
+              ++ cfg.trusted-networks;
             notify = map (ns: "${ns} NOKEY") (notify.ipv4 ++ notify.ipv6);
             notifyRetry = 5;
             data = let
