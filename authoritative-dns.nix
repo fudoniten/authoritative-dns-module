@@ -131,7 +131,7 @@ in {
             ksk.keyFile = ksk.key-file;
             provideXFR = (map (ns: "${ns}/32 NOKEY") notify.ipv4)
               ++ (map (ns: "${ns}/64 NOKEY") notify.ipv6)
-              ++ cfg.trusted-networks;
+              ++ (map (net: "${net} NOKEY") cfg.trusted-networks);
             notify = map (ns: "${ns} NOKEY") (notify.ipv4 ++ notify.ipv6);
             notifyRetry = 5;
             data = let
@@ -142,6 +142,7 @@ in {
               };
             in trace zoneData zoneData;
           }) cfg.domains;
+
         reverseZones = concatMapAttrs (domain:
           { ksk, zone, reverse-zones, notify, ... }:
           listToAttrs (map (network:
@@ -151,6 +152,7 @@ in {
               ipHostMap = cfg.ip-host-map;
               serial = cfg.timestamp;
             }) reverse-zones)) cfg.domains;
+
         secondaryZones = mapAttrs (domain: masterIp: {
           allowNotify = [ "${masterIp}" ];
           requestXFR = [ "${masterIp} NOKEY" ];
@@ -168,7 +170,9 @@ in {
               5m)
           '';
         }) cfg.mirrored-domains;
-      in forwardZones // reverseZones // secondaryZones;
+
+        allZones = forwardZones // reverseZones // secondaryZones;
+      in trace (concatStringsSep " :: " (attrNames allZones)) allZones;
     };
   };
 }
