@@ -166,27 +166,32 @@ let
   '') cfg.keys);
 
   # options are ordered alphanumerically by the nixos option name
-  zoneConfigFile = name: zone: ''
-    zone:
-      name:         "${name}"
-      zonefile:     "${stateDir}/zones/${mkZoneFileName name}"
-      ${maybeConfig "outgoing-interface: " zone.outgoingInterface}
-    ${forEach "  rrl-whitelist: " zone.rrlWhitelist}
-      ${maybeConfig "zonestats: " zone.zoneStats}
+  zoneConfigFile = name: zone:
+    let
+      outgoingInterface = trace
+        (let keys = concatStringsSep "," (attrNames zone);
+        in "ZONE KEYS: ${keys}") zone.outgoingInterface;
+    in ''
+      zone:
+        name:         "${name}"
+        zonefile:     "${stateDir}/zones/${mkZoneFileName name}"
+        ${maybeConfig "outgoing-interface: " outgoingInterface}
+      ${forEach "  rrl-whitelist: " zone.rrlWhitelist}
+        ${maybeConfig "zonestats: " zone.zoneStats}
 
-      ${maybeToString "max-refresh-time: " zone.maxRefreshSecs}
-      ${maybeToString "min-refresh-time: " zone.minRefreshSecs}
-      ${maybeToString "max-retry-time:   " zone.maxRetrySecs}
-      ${maybeToString "min-retry-time:   " zone.minRetrySecs}
+        ${maybeToString "max-refresh-time: " zone.maxRefreshSecs}
+        ${maybeToString "min-refresh-time: " zone.minRefreshSecs}
+        ${maybeToString "max-retry-time:   " zone.maxRetrySecs}
+        ${maybeToString "min-retry-time:   " zone.minRetrySecs}
 
-      allow-axfr-fallback: ${yesOrNo zone.allowAXFRFallback}
-    ${forEach "  allow-notify: " zone.allowNotify}
-    ${forEach "  request-xfr: " zone.requestXFR}
+        allow-axfr-fallback: ${yesOrNo zone.allowAXFRFallback}
+      ${forEach "  allow-notify: " zone.allowNotify}
+      ${forEach "  request-xfr: " zone.requestXFR}
 
-    ${forEach "  notify: " zone.notify}
-    ${maybeIntConfig "notify-retry: " zone.notifyRetry}
-    ${forEach "  provide-xfr: " zone.provideXFR}
-  '';
+      ${forEach "  notify: " zone.notify}
+      ${maybeIntConfig "notify-retry: " zone.notifyRetry}
+      ${forEach "  provide-xfr: " zone.provideXFR}
+    '';
 
   zoneConfigs = zoneConfigs' { } "" { children = cfg.zones; };
 
