@@ -170,7 +170,7 @@ let
     let
       outgoingInterface = trace
         (let keys = concatStringsSep "," (attrNames zone);
-        in "ZONE KEYS: ${keys}") zone.outgoingInterface;
+        in "ZONE KEYS: ${keys}") null;
     in ''
       zone:
         name:         "${name}"
