@@ -112,6 +112,12 @@ in {
       description = "List of whitelisted networks for transfers.";
       default = [ ];
     };
+
+    check-zonefiles = mkOption {
+      type = bool;
+      description = "Perform zonefile check before deploying.";
+      default = true;
+    };
   };
 
   imports = [ ./nsd.nix ];
@@ -123,6 +129,7 @@ in {
       interfaces = cfg.listen-ips;
       port = cfg.listen-port;
       stateDirectory = cfg.state-directory;
+      checkZonefiles = cfg.check-zonefiles;
       zones = let
         forwardZones = mapAttrs' (domain:
           { ksk, zone, notify, ... }:

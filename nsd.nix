@@ -49,7 +49,7 @@ let
     paths = [ configFile ]
       ++ mapAttrsToList (name: zone: writeZoneData name zone.data) zoneConfigs;
 
-    postBuild = ''
+    postBuild = optionalString cfg.checkZonefiles ''
       echo "checking zone files"
       cd $out/zones
 
@@ -65,7 +65,7 @@ let
           exit 1
         }
       done
-
+    '' + ''
       echo "checking configuration file"
       # Save original config file including key references...
       cp $out/nsd.conf{,.orig}
@@ -535,6 +535,19 @@ in {
       type = types.str;
       description = "User as which to run the NSD server.";
       default = "nsd";
+    };
+
+    checkZonefiles = mkOption {
+      type = types.bool;
+      description = ''
+        Perform nsd-checkzone on zonefiles before deploying.
+
+        Doesn't work with includes that don't exist at build time, so need the
+        ability to disable.
+
+        Note: distinct from zonefilesCheck!
+      '';
+      default = true;
     };
 
     stateDirectory = mkOption {
