@@ -84,7 +84,7 @@ let
       name = "nsd-zone-${mkZoneFileName name}";
       text = let
         includeClauses =
-          map (file: "$INCLUDE ./zones/include-${name}/${baseNameOf file}")
+          map (file: "$INCLUDE ./zones/includes-${name}/${baseNameOf file}")
           includes;
       in data + ''
         $ORIGIN ${name}.
