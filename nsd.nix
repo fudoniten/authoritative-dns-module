@@ -84,7 +84,8 @@ let
       name = "nsd-zone-${mkZoneFileName name}";
       text = let
         includeClauses =
-          map (file: "$INCLUDE ./zones/${name}/${baseNameOf file}") includes;
+          map (file: "$INCLUDE ./zones/include-${name}/${baseNameOf file}")
+          includes;
       in data + ''
         $ORIGIN ${name}.
         ${concatStringsSep "\n" includeClauses}
@@ -1031,9 +1032,11 @@ in {
           preStart = let
             copyZoneIncludes = concatLists (mapAttrsToList (zoneName:
               { includes, ... }:
-              [ "mkdir -p ${stateDir}/zones/${zoneName}" ] ++ (map (file:
-                "cp ${file} ${stateDir}/zones/${zoneName}/${baseNameOf file}"))
-              includes) cfg.zones);
+              [ "mkdir -p ${stateDir}/zones/includes-${zoneName}" ] ++ (map
+                (file:
+                  "cp ${file} ${stateDir}/zones/includes-${zoneName}/${
+                    baseNameOf file
+                  }")) includes) cfg.zones);
           in ''
             rm -Rf "${stateDir}/private/"
             rm -Rf "${stateDir}/tmp/"
