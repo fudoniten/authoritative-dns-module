@@ -1031,9 +1031,9 @@ in {
           preStart = let
             copyZoneIncludes = concatLists (mapAttrsToList (zoneName:
               { includes, ... }:
-              [ "mkdir -p ${stateDir}/${zoneName}" ] ++ (map (file:
-                "cp ${file} ${stateDir}/${zoneName}/${baseNameOf file}")))
-              cfg.zones);
+              [ "mkdir -p ${stateDir}/${zoneName}" ] ++ (map
+                (file: "cp ${file} ${stateDir}/${zoneName}/${baseNameOf file}"))
+              includes) cfg.zones);
           in ''
             rm -Rf "${stateDir}/private/"
             rm -Rf "${stateDir}/tmp/"
