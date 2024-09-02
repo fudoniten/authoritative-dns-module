@@ -47,7 +47,7 @@ let
     name = "nsd-env";
 
     paths = [ configFile ]
-      ++ mapAttrsToList (name: zone: writeZoneData name data) zoneConfigs;
+      ++ mapAttrsToList (name: zone: writeZoneData name zone) zoneConfigs;
 
     postBuild = optionalString cfg.checkZonefiles ''
       echo "checking zone files"
