@@ -47,7 +47,7 @@ let
     name = "nsd-env";
 
     paths = [ configFile ]
-      ++ mapAttrsToList (name: zone: writeZoneData name zone.data) zoneConfigs;
+      ++ mapAttrsToList (name: zone: writeZoneData name data) zoneConfigs;
 
     postBuild = optionalString cfg.checkZonefiles ''
       echo "checking zone files"
@@ -78,10 +78,17 @@ let
     '';
   };
 
-  writeZoneData = name: text:
+  writeZoneData = name:
+    { data, includes, ... }:
     pkgs.writeTextFile {
       name = "nsd-zone-${mkZoneFileName name}";
-      inherit text;
+      text = let
+        includeClauses =
+          map (file: "$INCLUDE ./${name}/${baseNameOf file}") includes;
+      in data + ''
+        $ORIGIN ${name}.
+        ${concatStringsSep "\n" includeClauses}
+      '';
       destination = "/zones/${mkZoneFileName name}";
     };
 
@@ -207,6 +214,13 @@ let
   # options are ordered alphanumerically
   zoneOptions = types.submodule {
     options = {
+
+      includes = mkOption {
+        type = types.listOf types.str;
+        description =
+          "List of files to include at the end of the zonefile. NOTE: incompatible with DNSSEC and zonefile checking.";
+        default = [ ];
+      };
 
       allowAXFRFallback = mkOption {
         type = types.bool;
@@ -1014,7 +1028,13 @@ in {
             RestartSec = "4s";
           };
 
-          preStart = ''
+          preStart = let
+            copyZoneIncludes = concatLists (mapAttrsToList (zoneName:
+              { includes, ... }:
+              [ "mkdir -p ${stateDir}/${zoneName}" ] ++ (map (file:
+                "cp ${file} ${stateDir}/${zoneName}/${baseNameOf file}")))
+              cfg.zones);
+          in ''
             rm -Rf "${stateDir}/private/"
             rm -Rf "${stateDir}/tmp/"
 
@@ -1036,6 +1056,8 @@ in {
 
             rm -rf "${stateDir}/zones"
             cp -rL "${nsdEnv}/zones" "${stateDir}/zones"
+
+            ${concatStringsSep "\n" copyZoneIncludes}
 
             ${copyKeys}
           '';

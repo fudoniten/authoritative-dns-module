@@ -32,6 +32,13 @@ let
         description = "Definition of network zone to be served.";
       };
 
+      includes = mkOption {
+        type = listOf str;
+        description =
+          "List of files to include at the end of the zonefile. NOTE: incompatible with DNSSEC and zone checking.";
+        default = [ ];
+      };
+
       reverse-zones = mkOption {
         type = listOf str;
         description =
@@ -132,7 +139,7 @@ in {
       checkZonefiles = cfg.check-zonefiles;
       zones = let
         forwardZones = mapAttrs' (domain:
-          { ksk, zone, notify, ... }:
+          { ksk, zone, notify, includes, ... }:
           nameValuePair "${domain}." {
             dnssec = ksk.key-file != null;
             ksk.keyFile = ksk.key-file;
@@ -141,6 +148,7 @@ in {
               ++ (map (net: "${net} NOKEY") cfg.trusted-networks);
             notify = map (ns: "${ns} NOKEY") (notify.ipv4 ++ notify.ipv6);
             notifyRetry = 5;
+            inherit includes;
             data = let
               zoneData = zoneToZonefile {
                 inherit domain;
