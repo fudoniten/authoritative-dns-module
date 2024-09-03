@@ -87,7 +87,7 @@ let
           map (file: "$INCLUDE ./zones/includes-${name}/${baseNameOf file}")
           includes;
       in data + ''
-        $ORIGIN ${name}.
+        $ORIGIN ${name}
         ${concatStringsSep "\n" includeClauses}
       '';
       destination = "/zones/${mkZoneFileName name}";
