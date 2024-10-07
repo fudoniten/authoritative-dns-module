@@ -54,7 +54,7 @@ let
       lines = splitString "\n" zonedata;
     in concatStringsSep "\n" (map formatter lines);
 
-  isNotNull = o: !isNull o;
+  isNotNull = o: o != null;
 
   hostToFqdn = host:
     let hostChars = "[a-zA-Z0-9_-]";

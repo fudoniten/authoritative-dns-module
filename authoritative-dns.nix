@@ -130,6 +130,11 @@ in {
   imports = [ ./nsd.nix ];
 
   config = mkIf cfg.enable {
+    networking.firewall = {
+      allowedTCPPorts = [ cfg.listen-port ];
+      allowedUDPPorts = [ cfg.listen-port ];
+    };
+
     services.fudo-nsd = {
       enable = true;
       identity = cfg.identity;
