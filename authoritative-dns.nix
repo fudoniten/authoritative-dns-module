@@ -135,7 +135,7 @@ in {
       allowedUDPPorts = [ cfg.listen-port ];
     };
 
-    fudo.nsd = {
+    services.fudo-nsd = {
       enable = true;
       identity = cfg.identity;
       interfaces = cfg.listen-ips;
