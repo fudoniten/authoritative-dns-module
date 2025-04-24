@@ -140,13 +140,11 @@ let
 
       ${joinLines (mapAttrsToList makeMetricRecords zone.metric-records)}
 
+      ${joinLines (mapAttrsToList cnameRecord zone.aliases)}
+
       $TTL ${zone.host-record-ttl}
 
       ${joinLines (mapAttrsToList makeHostRecords zone.hosts)}
-
-      $TTL ${zone.default-ttl}
-
-      ${joinLines (mapAttrsToList cnameRecord zone.aliases)}
 
       ${joinLines zone.verbatim-dns-records}
 
