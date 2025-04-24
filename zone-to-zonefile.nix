@@ -142,11 +142,11 @@ let
 
       ${joinLines (mapAttrsToList cnameRecord zone.aliases)}
 
+      ${joinLines zone.verbatim-dns-records}
+
       $TTL ${zone.host-record-ttl}
 
       ${joinLines (mapAttrsToList makeHostRecords zone.hosts)}
-
-      ${joinLines zone.verbatim-dns-records}
 
       ${subdomainRecords}
     '';
