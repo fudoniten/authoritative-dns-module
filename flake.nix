@@ -2,8 +2,8 @@
   description = "Authoritative DNS Server";
 
   inputs = {
-    nixpkgs.url = "nixpkgs/nixos-23.05";
-    fudo-lib.url = "github:fudoniten/fudo-nix-lib";
+    nixpkgs.url = "nixpkgs/nixos-25.05";
+    fudo-lib.url = "github:fudoniten/fudo-nix-lib/25.05";
   };
 
   outputs = { self, nixpkgs, fudo-lib, ... }: {
