@@ -125,6 +125,12 @@ in {
       description = "Perform zonefile check before deploying.";
       default = true;
     };
+
+    debug = mkOption {
+      type = bool;
+      description = "Enable debug output during evaluation.";
+      default = false;
+    };
   };
 
   imports = [ ./nsd.nix ];
@@ -160,7 +166,7 @@ in {
                 inherit (cfg) timestamp;
                 inherit zone;
               };
-            in trace zoneData zoneData;
+            in if cfg.debug then trace zoneData zoneData else zoneData;
           }) cfg.domains;
 
         reverseZones = concatMapAttrs (domain:
@@ -192,7 +198,7 @@ in {
         }) cfg.mirrored-domains;
 
         allZones = forwardZones // reverseZones // secondaryZones;
-      in trace (concatStringsSep " :: " (attrNames allZones)) allZones;
+      in if cfg.debug then trace (concatStringsSep " :: " (attrNames allZones)) allZones else allZones;
     };
   };
 }

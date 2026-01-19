@@ -18,7 +18,9 @@ let
 
   getNetworkHosts = network: filterAttrs (ip: _: ipv4OnNetwork ip network);
 
-  getLastIpComponent = ip: head (reverseList (splitString "." ip));
+  getLastIpComponent = ip:
+    let ipParts = splitString "." ip;
+    in assert ipParts != [] && ipParts != null; head (reverseList ipParts);
 
   getNetworkZoneName = network:
     let
@@ -51,7 +53,8 @@ let
 
   nameserverEntries = map (nameserver: "@ IN NS ${nameserver}") nameservers;
 
-in nameValuePair "${getNetworkZoneName network}" {
+in assert nameservers != [] && nameservers != null;
+nameValuePair "${getNetworkZoneName network}" {
   dnssec = keyFile != null;
   ksk.keyFile = keyFile;
   provideXFR = (map (ns: "${ns}/32 NOKEY") notify.ipv4)

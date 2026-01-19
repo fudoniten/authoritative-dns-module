@@ -119,7 +119,7 @@ let
       aliases = mkOption {
         type = attrsOf str;
         description =
-          "A mapping of host-alias -> hostname to add to the doamin record.";
+          "A mapping of host-alias -> hostname to add to the domain record.";
         default = { };
         example = {
           my-alias = "some-host";
@@ -136,7 +136,7 @@ let
 
       dmarc-report-address = mkOption {
         type = nullOr str;
-        description = "Email address to recieve DMARC reports, if any.";
+        description = "Email address to receive DMARC reports, if any.";
         example = "admin-user@domain.com";
         default = null;
       };
