@@ -10,6 +10,25 @@ let
 
   reverseZonefile = import ./reverse-zone.nix { inherit pkgs; };
 
+  # Input validation functions
+  isValidIpv4 = ip:
+    let parts = splitString "." ip;
+    in (length parts == 4) && all (p:
+      let n = toInt p;
+      in n >= 0 && n <= 255) parts;
+
+  isValidIpv6 = ip:
+    # Basic IPv6 validation - contains colons and valid hex characters
+    builtins.match "[0-9a-fA-F:]+(/[0-9]+)?" ip != null;
+
+  isValidDomain = domain:
+    # Basic domain validation - alphanumeric, hyphens, dots, and underscores
+    builtins.match "[a-zA-Z0-9][a-zA-Z0-9._-]*" domain != null;
+
+  isValidTimestamp = ts:
+    # Timestamp should be numeric and reasonable length (typically 10 digits for YYYYMMDDNN)
+    builtins.match "[0-9]{8,12}" ts != null;
+
   domainOpts = { name, ... }: {
     options = with types; {
       domain = mkOption {
@@ -125,11 +144,37 @@ in {
       description = "Perform zonefile check before deploying.";
       default = true;
     };
+
+    debug = mkOption {
+      type = bool;
+      description = "Enable debug output during evaluation.";
+      default = false;
+    };
   };
 
   imports = [ ./nsd.nix ];
 
   config = mkIf cfg.enable {
+    # Input validation assertions
+    assertions = [
+      {
+        assertion = isValidTimestamp cfg.timestamp;
+        message = "services.authoritative-dns.timestamp must be a numeric string of 8-12 digits (e.g., '2024010100')";
+      }
+      {
+        assertion = all isValidDomain (attrNames cfg.domains);
+        message = "All domain names in services.authoritative-dns.domains must be valid domain names";
+      }
+      {
+        assertion = all (ip: isValidIpv4 ip || isValidIpv6 ip) cfg.listen-ips;
+        message = "All IPs in services.authoritative-dns.listen-ips must be valid IPv4 or IPv6 addresses";
+      }
+      {
+        assertion = all (ip: isValidIpv4 ip || isValidIpv6 ip) (attrNames cfg.ip-host-map);
+        message = "All IPs in services.authoritative-dns.ip-host-map must be valid IPv4 or IPv6 addresses";
+      }
+    ];
+
     networking.firewall = {
       allowedTCPPorts = [ cfg.listen-port ];
       allowedUDPPorts = [ cfg.listen-port ];
@@ -160,7 +205,7 @@ in {
                 inherit (cfg) timestamp;
                 inherit zone;
               };
-            in trace zoneData zoneData;
+            in if cfg.debug then trace zoneData zoneData else zoneData;
           }) cfg.domains;
 
         reverseZones = concatMapAttrs (domain:
@@ -192,7 +237,7 @@ in {
         }) cfg.mirrored-domains;
 
         allZones = forwardZones // reverseZones // secondaryZones;
-      in trace (concatStringsSep " :: " (attrNames allZones)) allZones;
+      in if cfg.debug then trace (concatStringsSep " :: " (attrNames allZones)) allZones else allZones;
     };
   };
 }

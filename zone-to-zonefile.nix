@@ -4,6 +4,10 @@
 
 with lib;
 let
+  # Removes excessive blank lines (3 or more consecutive newlines) from a string.
+  # Uses builtins.split which returns a list alternating between strings and null values
+  # when matching the regex. We filter to keep only strings, then rejoin with double newlines.
+  # This normalizes multiple blank lines to at most one blank line between sections.
   removeBlankLines = str:
     concatStringsSep "\n\n" (filter isString (builtins.split ''
 
@@ -24,6 +28,12 @@ let
 
   isRecord = str: (recordMatcher str) != null;
 
+  # Creates a formatter function for DNS zone records that aligns columns for readability.
+  # Process:
+  #   1. Parse all DNS records in the zone data
+  #   2. Calculate maximum length for name and type fields
+  #   3. Return a formatter function that pads records to align columns
+  # This makes the zonefile much more human-readable with aligned IN and record types.
   makeZoneFormatter = zonedata:
     let
       lines = splitString "\n" zonedata;
@@ -33,6 +43,8 @@ let
       recordIndexMaxlen = i: maxInt (map (indexStrlen i) splitRecords);
     in recordFormatter (recordIndexMaxlen 0) (recordIndexMaxlen 1);
 
+  # Formats a single DNS record line by padding name and type fields to specified widths.
+  # Returns the line unchanged if it doesn't match the DNS record pattern.
   recordFormatter = nameMax: typeMax:
     let
       namePadder = padToLength nameMax;
@@ -56,6 +68,11 @@ let
 
   isNotNull = o: o != null;
 
+  # Converts a hostname to a fully-qualified domain name (FQDN)
+  # Handles three cases:
+  #   1. Simple hostname (e.g., "webserver") -> "webserver.domain.com."
+  #   2. Already FQDN with trailing dot (e.g., "host.example.com.") -> unchanged
+  #   3. FQDN without trailing dot (e.g., "host.example.com") -> "host.example.com."
   hostToFqdn = host:
     let hostChars = "[a-zA-Z0-9_-]";
     in if isNotNull (builtins.match "^${hostChars}+$" host) then
@@ -67,7 +84,7 @@ let
     (builtins.match "(${hostChars}+\\.)+${hostChars}+$" host) then
       "${host}."
     else
-      abort "unrecognized hostname: ${host}";
+      abort "unrecognized hostname '${host}' in domain '${domain}' (must contain only alphanumeric characters, hyphens, underscores, and dots)";
 
   makeSrvRecords = protocol: service: records:
     joinLines (map (record:
