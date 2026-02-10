@@ -2,32 +2,32 @@
   "nodes": {
     "fudo-lib": {
       "locked": {
-        "lastModified": 1768796350,
-        "narHash": "sha256-pWdKRIFo5sZl1ZpZA4UsvQQU8rXKaQWggcd03TP69Tk=",
+        "lastModified": 1769558608,
+        "narHash": "sha256-9+KlvDfSRdT7IhwWLh3N7VLxWkZv20mI7AxjSmCwCY0=",
         "owner": "fudoniten",
         "repo": "fudo-nix-lib",
-        "rev": "32b364c81e2a71b6997e305b94bfe821f7027038",
+        "rev": "b69554ee99b5e17541d60aa1353e8837e3432c75",
         "type": "github"
       },
       "original": {
         "owner": "fudoniten",
-        "ref": "25.05",
+        "ref": "25.11",
         "repo": "fudo-nix-lib",
         "type": "github"
       }
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1767313136,
-        "narHash": "sha256-16KkgfdYqjaeRGBaYsNrhPRRENs0qzkQVUooNHtoy2w=",
+        "lastModified": 1770464364,
+        "narHash": "sha256-z5NJPSBwsLf/OfD8WTmh79tlSU8XgIbwmk6qB1/TFzY=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "ac62194c3917d5f474c1a844b6fd6da2db95077d",
+        "rev": "23d72dabcb3b12469f57b37170fcbc1789bd7457",
         "type": "github"
       },
       "original": {
         "id": "nixpkgs",
-        "ref": "nixos-25.05",
+        "ref": "nixos-25.11",
         "type": "indirect"
       }
     },
