@@ -290,46 +290,6 @@ let
 
       dnssec = mkEnableOption "DNSSEC";
 
-      dnssecPolicy = {
-        algorithm = mkOption {
-          type = types.str;
-          default = "RSASHA256";
-          description = "Which algorithm to use for DNSSEC";
-        };
-        keyttl = mkOption {
-          type = types.str;
-          default = "1h";
-          description = "TTL for dnssec records";
-        };
-        coverage = mkOption {
-          type = types.str;
-          default = "1y";
-          description = ''
-            The length of time to ensure that keys will be correct; no action will be taken to create new keys to be activated after this time.
-          '';
-        };
-        zsk = mkOption {
-          type = keyPolicy;
-          default = {
-            keySize = 2048;
-            prePublish = "1w";
-            postPublish = "1w";
-            rollPeriod = "1mo";
-          };
-          description = "Key policy for zone signing keys";
-        };
-        ksk = mkOption {
-          type = keyPolicy;
-          default = {
-            keySize = 4096;
-            prePublish = "1mo";
-            postPublish = "1mo";
-            rollPeriod = "0";
-          };
-          description = "Key policy for key signing keys";
-        };
-      };
-
       ksk = {
         keyFile = mkOption {
           type = types.nullOr types.str;
@@ -477,51 +437,26 @@ let
     };
   };
 
-  keyPolicy = types.submodule {
-    options = {
-      keySize = mkOption {
-        type = types.int;
-        description = "Key size in bits";
-      };
-      prePublish = mkOption {
-        type = types.str;
-        description = "How long in advance to publish new keys";
-      };
-      postPublish = mkOption {
-        type = types.str;
-        description =
-          "How long after deactivation to keep a key in the zone";
-      };
-      rollPeriod = mkOption {
-        type = types.str;
-        description = "How frequently to change keys";
-      };
-    };
-  };
-
   dnssecZones =
     (filterAttrs (n: v: if v ? dnssec then v.dnssec else false) zoneConfigs);
 
   dnssec = dnssecZones != { };
 
-  dnssecTools = pkgs.bind.override { enablePython = true; };
-  ldnsTools = pkgs.ldns.examples;
+  rotateZoneKeys = zone:
+    let zoneDir = "${stateDir}/dnssec/${zone}";
+    in ''
+      mkdir -p ${zoneDir}
+      chown ${username}:${username} ${zoneDir}
+      chmod 0600 ${zoneDir}
+      ${pkgs.nsdRotateKeys}/bin/nsd-rotate-keys \
+        --key-directory=${zoneDir} \
+        --validity-period=30 \
+        --period-overlap=10 \
+        --metadata=${zoneDir}/metadata.json \
+        --verbose \
+        ${zone}
+    '';
 
-  signZones = let
-    dnssecZoneNames = attrNames dnssecZones;
-    mkdirCmds = map (zone: ''
-      mkdir -p ${stateDir}/dnssec/${zone}
-      chown ${username}:${username} ${stateDir}/dnssec/${zone}
-      chmod 0600 ${stateDir}/dnssec/${zone}
-    '') (attrNames dnssecZones);
-  in optionalString dnssec ''
-    mkdir -p ${stateDir}/dnssec
-    chown ${username}:${username} ${stateDir}/dnssec
-    chmod 0600 ${stateDir}/dnssec
-    ${concatStringsSep "\n" mkdirCmds}
-
-    ${concatStringsSep "\n" (mapAttrsToList signZone dnssecZones)}
-  '';
   signZone = name: zone: ''
     ${pkgs.nsdSignZone}/bin/nsd-sign-zone \
       --verbose \
@@ -534,22 +469,20 @@ let
       ${stateDir}/zones/${name}.signed &&
     mv -v ${stateDir}/zones/${name}.signed ${stateDir}/zones/${name}
   '';
-  policyFile = name: policy:
-    pkgs.writeText "${name}.policy" ''
-      zone ${name} {
-        algorithm ${policy.algorithm};
-        key-size zsk ${toString policy.zsk.keySize};
-        key-size ksk ${toString policy.ksk.keySize};
-        keyttl ${policy.keyttl};
-        pre-publish zsk ${policy.zsk.prePublish};
-        pre-publish ksk ${policy.ksk.prePublish};
-        post-publish zsk ${policy.zsk.postPublish};
-        post-publish ksk ${policy.ksk.postPublish};
-        roll-period zsk ${policy.zsk.rollPeriod};
-        roll-period ksk ${policy.ksk.rollPeriod};
-        coverage ${policy.coverage};
-      };
-    '';
+
+  # Rotates DNSSEC keys as needed, then (re-)signs every DNSSEC-enabled
+  # zone. Run this both in nsd.service's preStart -- so nsd never starts
+  # up serving unsigned zones -- and periodically from nsd-dnssec, which
+  # SIGHUPs nsd to reload once rotation/signing is done.
+  rotateAndSignZones = optionalString dnssec ''
+    mkdir -p ${stateDir}/dnssec
+    chown ${username}:${username} ${stateDir}/dnssec
+    chmod 0600 ${stateDir}/dnssec
+
+    ${concatStringsSep "\n" (map rotateZoneKeys (attrNames dnssecZones))}
+
+    ${concatStringsSep "\n" (mapAttrsToList signZone dnssecZones)}
+  '';
 in {
   options.services.fudo-nsd = {
 
@@ -1083,32 +1016,15 @@ in {
             ${concatStringsSep "\n" copyZoneIncludes}
 
             ${copyKeys}
+
+            ${rotateAndSignZones}
           '';
         };
 
         nsd-dnssec = mkIf dnssec {
           description = "DNSSEC key rollover";
 
-          wantedBy = [ "nsd.service" ];
-          before = [ "nsd.service" ];
-
-          preStart = let
-            zoneRotateCmd = zone:
-              let zoneDir = "${stateDir}/dnssec/${zone}";
-              in ''
-                mkdir -p ${zoneDir}
-                ${pkgs.nsdRotateKeys}/bin/nsd-rotate-keys \
-                  --key-directory=${zoneDir} \
-                  --validity-period=30 \
-                  --period-overlap=10 \
-                  --metadata=${zoneDir}/metadata.json \
-                  --verbose \
-                  ${zone}
-              '';
-            zoneRotateCmds = map zoneRotateCmd (lib.attrNames dnssecZones);
-          in lib.concatStringsSep "\n" zoneRotateCmds;
-
-          script = signZones;
+          script = rotateAndSignZones;
 
           postStop = ''
             /run/current-system/systemd/bin/systemctl kill -s SIGHUP nsd.service
@@ -1119,8 +1035,7 @@ in {
       timers.nsd-dnssec = mkIf dnssec {
         description = "Automatic DNSSEC key rollover";
 
-        wantedBy = [ "nsd.service" ];
-        before = [ "nsd.service" ];
+        wantedBy = [ "timers.target" ];
 
         timerConfig = {
           OnActiveSec = cfg.dnssecInterval;
