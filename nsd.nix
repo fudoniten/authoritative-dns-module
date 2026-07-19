@@ -133,6 +133,7 @@ let
       ${maybeConfig "version: " cfg.version}
       xfrd-reload-timeout: ${toString cfg.xfrdReloadTimeout}
       zonefiles-check:     ${yesOrNo cfg.zonefilesCheck}
+      zonefiles-write:     ${toString cfg.zonefilesWrite}
 
       ${maybeConfig "rrl-ipv4-prefix-length: " cfg.ratelimit.ipv4PrefixLength}
       ${maybeConfig "rrl-ipv6-prefix-length: " cfg.ratelimit.ipv6PrefixLength}
@@ -185,6 +186,7 @@ let
       ${maybeToString "min-retry-time:   " zone.minRetrySecs}
 
       allow-axfr-fallback: ${yesOrNo zone.allowAXFRFallback}
+      multi-master-check: ${yesOrNo zone.multiMasterCheck}
     ${forEach "  allow-notify: " zone.allowNotify}
     ${forEach "  request-xfr: " zone.requestXFR}
 
@@ -371,6 +373,16 @@ let
         default = null;
         description = ''
           Limit retry time for secondary zones.
+        '';
+      };
+
+      multiMasterCheck = mkOption {
+        type = types.bool;
+        default = false;
+        description = ''
+          If enabled, checks all masters for the last zone version.
+          It uses the higher version from all configured masters.
+          Useful if you have multiple masters that have different version numbers served.
         '';
       };
 
@@ -779,6 +791,17 @@ in {
       default = true;
       description = ''
         Whether to check mtime of all zone files on start and sighup.
+      '';
+    };
+
+    zonefilesWrite = mkOption {
+      type = types.int;
+      default = 0;
+      description = ''
+        Write changed secondary zones to their zonefile every N seconds.
+        If the zone (pattern) configuration has "" zonefile, it is not written.
+        Zones that have received zone transfer updates are written to their zonefile.
+        0 disables writing to zone files.
       '';
     };
 
