@@ -145,6 +145,22 @@ in {
       default = true;
     };
 
+    zonefiles-path = mkOption {
+      type = nullOr str;
+      description = ''
+        Path outside the store from which to take zonefiles, or null to take
+        them from the system closure.
+
+        Point this at a deploy-rs profile to let a record change ship without
+        the system generation moving: a changed IP then costs a profile deploy
+        rather than a rebuild of the whole host. The profile is laid over the
+        copy in the closure rather than replacing it, so a zone it does not
+        carry still resolves and nsd always starts.
+      '';
+      default = null;
+      example = "/nix/var/nix/profiles/dns-zones";
+    };
+
     debug = mkOption {
       type = bool;
       description = "Enable debug output during evaluation.";
@@ -187,6 +203,7 @@ in {
       port = cfg.listen-port;
       stateDirectory = cfg.state-directory;
       checkZonefiles = cfg.check-zonefiles;
+      zonefilesPath = cfg.zonefiles-path;
       zones = let
         forwardZones = mapAttrs' (domain:
           { ksk, zone, notify, includes, ... }:

@@ -43,13 +43,34 @@ let
       sed "s@^\s*include:\s*\"${stateDir}/private/${keyName}\"\$@secret: $fakeKey@" -i $out/nsd.conf
     '') keys);
 
-  nsdEnv = pkgs.buildEnv {
-    name = "nsd-env";
+  # ---------------------------------------------------------------------------
+  # The store side of nsd's state, in two halves
+  #
+  # These were one `buildEnv` ("nsd-env") holding nsd.conf and every zonefile,
+  # referenced by the unit -- so a single changed record moved
+  # `system.build.toplevel`, and the only way to get that record to the server
+  # was a full system deploy.
+  #
+  # They come apart cleanly because nsd.conf never names a store path: every
+  # `zonefile:` line points into the state directory, and a store path is only
+  # ever the *source of a copy* made at startup. So the config depends on the
+  # set of zones and their per-zone options, the zonefiles depend on the
+  # records, and those are two quite different rates of change.
+  #
+  # `zonefilesPackage` can therefore be deployed on its own -- see
+  # `zonefilesPath` and the nsd-install-zones script below.
+  # ---------------------------------------------------------------------------
 
-    paths = [ configFile ]
-      ++ mapAttrsToList (name: zone: writeZoneData name zone) zoneConfigs;
-
-    postBuild = optionalString cfg.checkZonefiles ''
+  # A plain directory rather than a buildEnv: with exactly one zone buildEnv
+  # makes $out/zones a symlink to that zone's own derivation, and the install
+  # script wants the same shape however many zones there are.
+  zonefilesPkg = pkgs.runCommand "nsd-zones" { } (''
+    mkdir -p $out/zones
+  '' + concatStringsSep "\n" (mapAttrsToList (name: zone:
+    ''cp "${writeZoneData name zone}/zones/${mkZoneFileName name}" "$out/zones/${
+      mkZoneFileName name
+    }"'') zoneConfigs) + "\n"
+    + optionalString (cfg.checkZonefiles && zoneConfigs != { }) ''
       echo "checking zone files"
       cd $out/zones
 
@@ -65,18 +86,25 @@ let
           exit 1
         }
       done
-    '' + ''
-      echo "checking configuration file"
-      # Save original config file including key references...
-      cp $out/nsd.conf{,.orig}
-      # ...inject mock keys into config
-      ${injectFakeKeys cfg.keys}
-      # ...do the checkconf
-      ${nsdPkg}/sbin/nsd-checkconf $out/nsd.conf
-      # ... and restore original config file.
-      mv $out/nsd.conf{.orig,}
-    '';
-  };
+    '');
+
+  # nsd.conf, checked. The check needs a writable copy -- it substitutes mock
+  # TSIG keys for the `include:` directives nsd-checkconf cannot read -- so it
+  # cannot run against `configFile` in place.
+  checkedConfigFile = pkgs.runCommand "nsd-conf" { } ''
+    mkdir -p $out
+    install -m 0644 ${configFile}/nsd.conf $out/nsd.conf
+
+    echo "checking configuration file"
+    # Save original config file including key references...
+    cp $out/nsd.conf{,.orig}
+    # ...inject mock keys into config
+    ${injectFakeKeys cfg.keys}
+    # ...do the checkconf
+    ${nsdPkg}/sbin/nsd-checkconf $out/nsd.conf
+    # ... and restore original config file.
+    mv $out/nsd.conf{.orig,}
+  '';
 
   writeZoneData = name:
     { data, includes, ... }:
@@ -457,23 +485,31 @@ let
         ${zone}
     '';
 
+  # Signs the copy of the zone in "$zonedir", which the caller sets:
+  # nsd-install-zones points it at a staging directory, nsd-dnssec at the live
+  # one. The key material is addressed absolutely either way -- rotation state
+  # lives beside the zones, not in them.
+  #
+  # (`mkZoneFileName`, not the bare name: that is what `writeZoneData` names
+  # the file, and the two differ for the root zone.)
   signZone = name: zone: ''
     ${pkgs.nsdSignZone}/bin/nsd-sign-zone \
       --verbose \
       --domain=${name} \
       --ksk-file=${zone.ksk.keyFile} \
       --zsk-metadata=${stateDir}/dnssec/${name}/metadata.json \
-      ${stateDir}/zones/${name}
+      "$zonedir/${mkZoneFileName name}"
     ${nsdPkg}/sbin/nsd-checkzone \
       ${name} \
-      ${stateDir}/zones/${name}.signed &&
-    mv -v ${stateDir}/zones/${name}.signed ${stateDir}/zones/${name}
+      "$zonedir/${mkZoneFileName name}.signed" &&
+    mv -v "$zonedir/${mkZoneFileName name}.signed" \
+      "$zonedir/${mkZoneFileName name}"
   '';
 
-  # Rotates DNSSEC keys as needed, then (re-)signs every DNSSEC-enabled
-  # zone. Run this both in nsd.service's preStart -- so nsd never starts
-  # up serving unsigned zones -- and periodically from nsd-dnssec, which
-  # SIGHUPs nsd to reload once rotation/signing is done.
+  # Rotates DNSSEC keys as needed, then (re-)signs every DNSSEC-enabled zone in
+  # "$zonedir", which the caller must have set. Run from nsd-install-zones --
+  # so nsd never starts up, or reloads, serving unsigned zones -- and
+  # periodically from nsd-dnssec, which SIGHUPs nsd once it is done.
   rotateAndSignZones = optionalString dnssec ''
     mkdir -p ${stateDir}/dnssec
     chown ${username}:${username} ${stateDir}/dnssec
@@ -482,6 +518,102 @@ let
     ${concatStringsSep "\n" (map rotateZoneKeys (attrNames dnssecZones))}
 
     ${concatStringsSep "\n" (mapAttrsToList signZone dnssecZones)}
+  '';
+
+  # Zone `includes` are copied at install time rather than built into the
+  # zonefile package, because they are runtime paths: the whole point of an
+  # include is a file some other unit on this host writes -- dynamic host
+  # records, say -- which by definition does not exist at evaluation time.
+  copyZoneIncludes = concatLists (mapAttrsToList (zoneName:
+    { includes, ... }:
+    optionals (includes != [ ])
+    ([ ''mkdir -p "$zonedir/includes-${zoneName}"'' ] ++ (map (file:
+      ''cp "${file}" "$zonedir/includes-${zoneName}/${baseNameOf file}"'')
+      includes))) zoneConfigs);
+
+  # Installs a set of zonefiles into the state directory and, with --reload,
+  # makes a running nsd pick them up.
+  #
+  # This lives in the *system* closure rather than travelling with the
+  # zonefiles, and deliberately so: signing a zone needs that zone's KSK path,
+  # which is something the host's configuration knows and a directory of
+  # zonefiles does not. It also keeps the separately-deployable half down to
+  # the zone text itself.
+  #
+  # The work happens in a staging directory and the live one is swapped in only
+  # once every zone has been signed and checked. A half-signed zones/ would be
+  # worse than a stale one: `zonefiles-check` is on, so the next SIGHUP -- from
+  # the rotation timer, if not from here -- would load the unsigned file, and
+  # the zone would start answering with no RRSIGs at all.
+  installZones = pkgs.writeShellScriptBin "nsd-install-zones" ''
+    set -euo pipefail
+
+    # deploy-rs activation does not run with a login shell, and preStart's PATH
+    # is systemd's, so neither is a place to assume coreutils.
+    export PATH="${makeBinPath [ pkgs.coreutils ]}:$PATH"
+
+    reload=0
+    overlay="${optionalString (cfg.zonefilesPath != null) cfg.zonefilesPath}"
+
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --reload) reload=1 ;;
+        -*)
+          echo "nsd-install-zones: unknown option $1" >&2
+          exit 1
+          ;;
+        *) overlay="$1" ;;
+      esac
+      shift
+    done
+
+    mkdir -p "${stateDir}"
+    zonedir="$(mktemp -d "${stateDir}/.zones.XXXXXX")"
+    trap 'rm -rf "$zonedir"' EXIT
+
+    # The copy from the system closure is the base, and the profile is laid
+    # over the top of it per file.
+    #
+    # Not either/or, because the two can legitimately disagree about which
+    # zones exist: the closure's set always matches the nsd.conf this unit
+    # starts nsd with, while the profile's set is whatever was deployed last.
+    # Taking the profile wholesale would mean a zone added to nsd.conf has no
+    # zonefile until the profile catches up -- and nsd does not start at all
+    # when a configured zonefile is missing. Overlaying makes the profile
+    # strictly optional: a host with no profile yet, or one rolled back to a
+    # generation older than the profile, still comes up serving every zone it
+    # is configured for.
+    cp -rLT "${zonefilesPkg}/zones" "$zonedir"
+    chmod -R u+w,a+rX "$zonedir"
+
+    if [ -n "$overlay" ] && [ -d "$overlay/zones" ]; then
+      echo "nsd-install-zones: taking zones from $overlay"
+      cp -rLf "$overlay/zones/." "$zonedir/"
+    else
+      echo "nsd-install-zones: no zone profile at ''${overlay:-<unset>};" \
+           "using the zonefiles from the system closure" >&2
+    fi
+
+    # Out of the store either way, so read-only; nsd reads these as its own
+    # user, and signing rewrites them in place.
+    chmod -R u+w,a+rX "$zonedir"
+
+    ${concatStringsSep "\n" copyZoneIncludes}
+
+    ${rotateAndSignZones}
+
+    rm -rf "${stateDir}/zones.old"
+    if [ -e "${stateDir}/zones" ]; then
+      mv "${stateDir}/zones" "${stateDir}/zones.old"
+    fi
+    mv "$zonedir" "${stateDir}/zones"
+    trap - EXIT
+    rm -rf "${stateDir}/zones.old"
+
+    if [ "$reload" = 1 ]; then
+      echo "nsd-install-zones: reloading nsd"
+      /run/current-system/systemd/bin/systemctl kill -s SIGHUP nsd.service
+    fi
   '';
 in {
   options.services.fudo-nsd = {
@@ -505,6 +637,42 @@ in {
         Note: distinct from zonefilesCheck!
       '';
       default = true;
+    };
+
+    zonefilesPath = mkOption {
+      type = types.nullOr types.str;
+      default = null;
+      example = "/nix/var/nix/profiles/dns-zones";
+      description = ''
+        Path outside the store from which to install zonefiles, or null to take
+        them from the system closure.
+
+        Point this at a deploy-rs profile to let zone content ship on its own:
+        the records then change without `system.build.toplevel` having to move,
+        so an edit that touches nothing but a zone costs a profile deploy
+        rather than a full system one.
+
+        The directory must contain a `zones/` subdirectory laid out as
+        `zonefilesPackage` is, and is laid over that package rather than
+        replacing it: any zone the profile does not carry falls back to the
+        copy in the system closure, which always matches the nsd.conf nsd is
+        started with. Setting this therefore cannot leave nsd unable to start,
+        and does not constrain the order the two are deployed in.
+      '';
+    };
+
+    zonefilesPackage = mkOption {
+      type = types.package;
+      readOnly = true;
+      default = zonefilesPkg;
+      defaultText = literalExpression "the zonefiles generated from `zones`";
+      description = ''
+        The generated zonefiles, as a derivation containing `zones/`.
+
+        Read-only, and exposed so that a deployment tool can read it off an
+        evaluated host and install it at `zonefilesPath` as a standalone
+        profile. Its closure is the zone text and nothing else.
+      '';
     };
 
     stateDirectory = mkOption {
@@ -947,8 +1115,13 @@ in {
     };
 
     environment = {
-      systemPackages = [ nsdPkg ];
-      etc."nsd/nsd.conf".source = "${configFile}/nsd.conf";
+      # nsd-install-zones is in PATH because the zone profile's activation
+      # script calls it through /run/current-system/sw/bin -- deliberately the
+      # *running* system's copy, since the running nsd.conf is what decides
+      # which zones exist and which of them are signed.
+      systemPackages = [ nsdPkg installZones ];
+      # The checked copy, so what is in /etc is what nsd was started with.
+      etc."nsd/nsd.conf".source = "${checkedConfigFile}/nsd.conf";
     };
 
     users = {
@@ -975,22 +1148,14 @@ in {
           startLimitBurst = 4;
           startLimitIntervalSec = 5 * 60; # 5 mins
           serviceConfig = {
-            ExecStart = "${nsdPkg}/sbin/nsd -d -c ${nsdEnv}/nsd.conf";
+            ExecStart = "${nsdPkg}/sbin/nsd -d -c ${checkedConfigFile}/nsd.conf";
             StandardError = "null";
             PIDFile = pidFile;
             Restart = "always";
             RestartSec = "4s";
           };
 
-          preStart = let
-            copyZoneIncludes = concatLists (mapAttrsToList (zoneName:
-              { includes, ... }:
-              [ "mkdir -p ${stateDir}/zones/includes-${zoneName}" ] ++ (map
-                (file:
-                  "cp ${file} ${stateDir}/zones/includes-${zoneName}/${
-                    baseNameOf file
-                  }")) includes) cfg.zones);
-          in ''
+          preStart = ''
             rm -Rf "${stateDir}/private/"
             rm -Rf "${stateDir}/tmp/"
 
@@ -1010,21 +1175,23 @@ in {
             chown ${username}:${username} -R "${stateDir}/var"
             chown ${username}:${username} -R "${stateDir}/run"
 
-            rm -rf "${stateDir}/zones"
-            cp -rL "${nsdEnv}/zones" "${stateDir}/zones"
-
-            ${concatStringsSep "\n" copyZoneIncludes}
-
             ${copyKeys}
 
-            ${rotateAndSignZones}
+            # No --reload: nsd is not running yet, and is about to read these
+            # for itself.
+            ${installZones}/bin/nsd-install-zones
           '';
         };
 
         nsd-dnssec = mkIf dnssec {
           description = "DNSSEC key rollover";
 
-          script = rotateAndSignZones;
+          # In place, unlike nsd-install-zones: rotation re-signs the zones
+          # nsd is already serving, from the same content, so there is nothing
+          # to stage and nothing that could arrive half-installed.
+          script = ''
+            zonedir="${stateDir}/zones"
+          '' + rotateAndSignZones;
 
           postStop = ''
             /run/current-system/systemd/bin/systemctl kill -s SIGHUP nsd.service
