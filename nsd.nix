@@ -457,18 +457,30 @@ let
         ${zone}
     '';
 
-  signZone = name: zone: ''
-    ${pkgs.nsdSignZone}/bin/nsd-sign-zone \
-      --verbose \
-      --domain=${name} \
-      --ksk-file=${zone.ksk.keyFile} \
-      --zsk-metadata=${stateDir}/dnssec/${name}/metadata.json \
-      ${stateDir}/zones/${name}
-    ${nsdPkg}/sbin/nsd-checkzone \
-      ${name} \
-      ${stateDir}/zones/${name}.signed &&
-    mv -v ${stateDir}/zones/${name}.signed ${stateDir}/zones/${name}
-  '';
+  # Always signs the unsigned zone from the store, never the copy nsd serves.
+  # That copy is the *signed* zone after the first run, and ldns-signzone
+  # handed a signed zone keeps its existing NSEC3 chain rather than building
+  # a new one -- dropping, on the way in, every NSEC3 it cannot attach to a
+  # name. An empty non-terminal (`b.example` when only `a.b.example` has
+  # records) has no name until ldns derives it, so its NSEC3 is the one
+  # lost: the chain still points at it, nothing answers for it, and every
+  # NXDOMAIN beneath it fails validation for want of a closest-encloser
+  # proof. It also meant the fresh salt from each run was ignored.
+  signZone = name: zone:
+    let zonefile = "${stateDir}/zones/${mkZoneFileName name}";
+    in ''
+      ${pkgs.nsdSignZone}/bin/nsd-sign-zone \
+        --verbose \
+        --domain=${name} \
+        --ksk-file=${zone.ksk.keyFile} \
+        --zsk-metadata=${stateDir}/dnssec/${name}/metadata.json \
+        --output=${zonefile}.signed \
+        ${nsdEnv}/zones/${mkZoneFileName name}
+      ${nsdPkg}/sbin/nsd-checkzone \
+        ${name} \
+        ${zonefile}.signed &&
+      mv -v ${zonefile}.signed ${zonefile}
+    '';
 
   # Rotates DNSSEC keys as needed, then (re-)signs every DNSSEC-enabled
   # zone. Run this both in nsd.service's preStart -- so nsd never starts
