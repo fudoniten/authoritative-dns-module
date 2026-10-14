@@ -25,6 +25,13 @@ let
     # Basic domain validation - alphanumeric, hyphens, dots, and underscores
     builtins.match "[a-zA-Z0-9][a-zA-Z0-9._-]*" domain != null;
 
+  # NSD's `notify:` takes `ip@port`; a bare address means port 53.
+  notifyTargets = notify:
+    let
+      withPort = ip:
+        if notify.port == null then ip else "${ip}@${toString notify.port}";
+    in map (ns: "${withPort ns} NOKEY") (notify.ipv4 ++ notify.ipv6);
+
   isValidTimestamp = ts:
     # Timestamp should be numeric and reasonable length (typically 10 digits for YYYYMMDDNN)
     builtins.match "[0-9]{8,12}" ts != null;
@@ -76,6 +83,20 @@ let
           type = listOf str;
           description = "List of IPv6 addresses to notify of changes.";
           default = [ ];
+        };
+
+        port = mkOption {
+          type = nullOr port;
+          description = ''
+            Port on which the servers in `ipv4` and `ipv6` accept NOTIFY
+            messages. Null sends to the default DNS port (53).
+
+            Only the notifications are affected: zone transfers are requested
+            by the secondary, so their permissions (`provide-xfr`) name the
+            secondary's address and nothing else, whatever port it serves on.
+          '';
+          default = null;
+          example = 5053;
         };
       };
     };
@@ -196,7 +217,7 @@ in {
             provideXFR = (map (ns: "${ns}/32 NOKEY") notify.ipv4)
               ++ (map (ns: "${ns}/64 NOKEY") notify.ipv6)
               ++ (map (net: "${net} NOKEY") cfg.trusted-networks);
-            notify = map (ns: "${ns} NOKEY") (notify.ipv4 ++ notify.ipv6);
+            notify = notifyTargets notify;
             notifyRetry = 5;
             inherit includes;
             data = let
@@ -212,7 +233,7 @@ in {
           { ksk, zone, reverse-zones, notify, ... }:
           listToAttrs (map (network:
             reverseZonefile {
-              inherit domain network notify;
+              inherit domain network notify notifyTargets;
               inherit (zone) nameservers;
               ipHostMap = cfg.ip-host-map;
               serial = cfg.timestamp;
