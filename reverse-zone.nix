@@ -1,6 +1,7 @@
 { pkgs, ... }:
 
-{ domain, network, nameservers, notify, ipHostMap, serial, keyFile ? null
+{ domain, network, nameservers, notify, notifyTargets, ipHostMap, serial
+, keyFile ? null
 , zoneTTL ? 10800, refresh ? 3600, retry ? 1800, expire ? 604800, minimum ? 3600
 }:
 
@@ -59,7 +60,7 @@ nameValuePair "${getNetworkZoneName network}" {
   ksk.keyFile = keyFile;
   provideXFR = (map (ns: "${ns}/32 NOKEY") notify.ipv4)
     ++ (map (ns: "${ns}/64 NOKEY") notify.ipv6);
-  notify = map (ns: "${ns} NOKEY") (notify.ipv4 ++ notify.ipv6);
+  notify = notifyTargets notify;
   data = ''
     $ORIGIN ${getNetworkZoneName network}
     $TTL ${toString zoneTTL}
