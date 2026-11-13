@@ -475,7 +475,7 @@ let
         --ksk-file=${zone.ksk.keyFile} \
         --zsk-metadata=${stateDir}/dnssec/${name}/metadata.json \
         --output=${zonefile}.signed \
-        ${nsdEnv}/zones/${mkZoneFileName name}
+        ${envDir}/zones/${mkZoneFileName name}
       ${nsdPkg}/sbin/nsd-checkzone \
         ${name} \
         ${zonefile}.signed &&
@@ -495,8 +495,248 @@ let
 
     ${concatStringsSep "\n" (mapAttrsToList signZone dnssecZones)}
   '';
+
+  # ---------------------------------------------------------------------------
+  # Profile mode
+  #
+  # Normally nsd reads its config and zones straight out of `nsdEnv`, and that
+  # store path is written into nsd.service. Every record change is then a new
+  # unit, and so a full system deploy that restarts nsd.
+  #
+  # In profile mode the same bundle is deployed as a deploy-rs profile of its
+  # own, and nsd.service, its preStart and the DNSSEC timer read everything
+  # through the profile link instead. Nothing in the system closure depends on
+  # the zone data, so a record change is a deploy of that profile alone. The
+  # profile's activation reloads nsd when only zone contents changed and
+  # restarts it when nsd.conf did, then checks that every zone this server is
+  # primary for answers with the serial it was just given.
+  # ---------------------------------------------------------------------------
+
+  # Where nsd reads nsd.conf and the unsigned zones from.
+  envDir = if cfg.profile.enable then cfg.profile.path else nsdEnv;
+
+  copyZoneIncludes = concatLists (mapAttrsToList (zoneName:
+    { includes, ... }:
+    [ "mkdir -p ${stateDir}/zones/includes-${zoneName}" ] ++ (map (file:
+      "cp ${file} ${stateDir}/zones/includes-${zoneName}/${baseNameOf file}")
+      includes)) cfg.zones);
+
+  # Serialises everything that rewrites ${stateDir}/zones: nsd's preStart, the
+  # DNSSEC timer and a profile reload could otherwise interleave.
+  withZoneLock = body: ''
+    mkdir -m 0700 -p "${stateDir}/var"
+    exec 9>"${stateDir}/var/zones.lock"
+    ${pkgs.util-linux}/bin/flock 9
+
+    ${body}
+  '';
+
+  # Replace the zones nsd serves with the ones in envDir, then sign. Built in
+  # a sibling directory and swapped in, so a reload never sees half a copy.
+  refreshZones = ''
+    rm -rf "${stateDir}/zones.new"
+    cp -rL "${envDir}/zones" "${stateDir}/zones.new"
+    rm -rf "${stateDir}/zones"
+    mv "${stateDir}/zones.new" "${stateDir}/zones"
+
+    ${concatStringsSep "\n" copyZoneIncludes}
+
+    ${rotateAndSignZones}
+  '';
+
+  prepareState = ''
+    rm -Rf "${stateDir}/private/"
+    rm -Rf "${stateDir}/tmp/"
+
+    mkdir -m 0700 -p "${stateDir}/private"
+    mkdir -m 0700 -p "${stateDir}/tmp"
+    mkdir -m 0700 -p "${stateDir}/var"
+    mkdir -m 0711 -p "${stateDir}/run"
+
+    cat > "${stateDir}/don't touch anything in here" << EOF
+    Everything in this directory except NSD's state in var and dnssec
+    is automatically generated and will be purged and redeployed by
+    the nsd.service pre-start script.
+    EOF
+
+    chown ${username}:${username} -R "${stateDir}/private"
+    chown ${username}:${username} -R "${stateDir}/tmp"
+    chown ${username}:${username} -R "${stateDir}/var"
+    chown ${username}:${username} -R "${stateDir}/run"
+
+    ${copyKeys}
+  '';
+
+  # Records which nsd.conf the running nsd was started with, so the profile
+  # activation can tell a reload from a restart.
+  startedConf = "/run/nsd-profile/started-conf.sha256";
+
+  profileToolPath = makeBinPath (with pkgs; [
+    coreutils
+    findutils
+    gawk
+    gnugrep
+    gnused
+    util-linux
+    systemd
+    dig
+  ]);
+
+  mkProfileScript = name: body:
+    pkgs.writeShellScriptBin name ''
+      set -eo pipefail
+      export PATH=${profileToolPath}''${PATH:+:$PATH}
+
+      ${body}
+    '';
+
+  # Zones this server is primary for -- the ones the activation can check.
+  # Secondary zones answer whatever their primary last sent.
+  primaryZones = filterAttrs (_: zone: zone.requestXFR == [ ]) zoneConfigs;
+
+  # Address the activation queries nsd on.
+  checkAddress = let
+    addrs = map (iface: head (splitString "@" iface)) cfg.interfaces;
+    v4 = filter (addr: !(hasInfix ":" addr)) addrs;
+  in if addrs == [ ] || elem "0.0.0.0" addrs then
+    "127.0.0.1"
+  else if v4 != [ ] then
+    head v4
+  else if elem "::" addrs then
+    "::1"
+  else
+    head addrs;
+
+  verifyZones = ''
+    # The serial of the SOA record in a zonefile: the first number after the
+    # SOA's two names, on that line or the ones after it. Matching on
+    # "IN SOA" skips the "RRSIG SOA" lines of a signed zone.
+    file_serial() {
+      awk '
+        !found {
+          for (i = 2; i <= NF; i++)
+            if ($i == "SOA" && $(i-1) == "IN") { found = 1; start = i + 3; break }
+          if (!found) next
+          for (j = start; j <= NF; j++) if ($j ~ /^[0-9]+$/) { print $j; exit }
+          next
+        }
+        { for (j = 1; j <= NF; j++) if ($j ~ /^[0-9]+$/) { print $j; exit } }
+      ' "$1"
+    }
+
+    served_serial() {
+      dig +norec +time=2 +tries=1 -p ${toString cfg.port} @${checkAddress} \
+        "$1" SOA +noall +answer 2>/dev/null \
+        | awk '$4 == "SOA" { print $7; exit }'
+    }
+
+    failed=
+    deadline=$((SECONDS + 60))
+    check_zone() {
+      local zone="$1" file="$2" want got
+      want=$(file_serial "$file" 2>/dev/null || true)
+      if [ -z "$want" ]; then
+        echo "nsd: no SOA serial found in $file" >&2
+        failed=1
+        return
+      fi
+      while :; do
+        got=$(served_serial "$zone" || true)
+        [ "$got" = "$want" ] && { echo "nsd: $zone serving serial $got"; return; }
+        if [ "$SECONDS" -ge "$deadline" ]; then
+          echo "nsd: $zone answers serial '$got', expected $want" >&2
+          failed=1
+          return
+        fi
+        sleep 1
+      done
+    }
+
+    ${concatStringsSep "\n" (mapAttrsToList (name: _:
+      ''check_zone ${escapeShellArg name} "${stateDir}/zones/${mkZoneFileName name}"'')
+      primaryZones)}
+
+    [ -z "$failed" ]
+  '';
+
+  profilePackage = pkgs.symlinkJoin {
+    name = "nsd-profile";
+    paths = [
+      nsdEnv
+
+      (mkProfileScript "nsd-prepare" ''
+        ${prepareState}
+
+        ${withZoneLock refreshZones}
+
+        mkdir -p "$(dirname ${startedConf})"
+        sha256sum < "${cfg.profile.path}/nsd.conf" | cut -d' ' -f1 \
+          > ${startedConf}
+      '')
+
+      (mkProfileScript "nsd-refresh-zones" (withZoneLock refreshZones))
+
+      (mkProfileScript "nsd-sign-zones" (withZoneLock rotateAndSignZones))
+
+      (mkProfileScript "nsd-profile-activate" ''
+        set -u
+
+        # A system generation from before profile mode still runs nsd from
+        # its own store path. Leave it alone: the system profile deployed
+        # after this one restarts nsd into the profile, and restarting the
+        # outgoing unit here would only restart it twice.
+        if [ ! -e /etc/nsd/profile-path ]; then
+          echo "nsd: the running system does not read ${cfg.profile.path}" \
+               "yet; leaving the start to the system profile"
+          exit 0
+        fi
+
+        incoming=$(sha256sum < "${cfg.profile.path}/nsd.conf" | cut -d' ' -f1)
+        running=$(cat ${startedConf} 2>/dev/null || true)
+
+        if ! systemctl is-active --quiet nsd.service; then
+          echo "nsd: not running; starting it"
+          systemctl reset-failed nsd.service 2>/dev/null || true
+          systemctl start nsd.service
+        elif [ "$running" = "$incoming" ]; then
+          echo "nsd: nsd.conf unchanged; reloading zones"
+          "${cfg.profile.path}/bin/nsd-refresh-zones"
+          systemctl kill -s HUP nsd.service
+        else
+          echo "nsd: nsd.conf changed; restarting"
+          systemctl restart nsd.service
+        fi
+
+        ${verifyZones}
+      '')
+    ];
+  };
 in {
   options.services.fudo-nsd = {
+
+    profile = {
+      enable = mkEnableOption ''
+        reading nsd.conf and the zones through a deploy-rs profile link rather
+        than from the system closure, so zone changes deploy without a system
+        rebuild. The profile must be deployed before the first system
+        generation that enables this, or nsd will not start
+      '';
+
+      path = mkOption {
+        type = types.str;
+        default = "/nix/var/nix/profiles/dns";
+        description = "Profile link nsd reads its config and zones through.";
+      };
+
+      package = mkOption {
+        type = types.package;
+        readOnly = true;
+        description = ''
+          The profile to deploy at `path`: nsd.conf, the unsigned zones, and
+          `bin/nsd-profile-activate`, its activation script.
+        '';
+      };
+    };
 
     enable = mkEnableOption "NSD authoritative DNS server";
 
@@ -952,6 +1192,8 @@ in {
 
   config = mkIf cfg.enable {
 
+    services.fudo-nsd.profile.package = profilePackage;
+
     assertions = singleton {
       assertion = zoneConfigs ? "." -> cfg.rootServer;
       message = "You have a root zone configured. If this is really what you "
@@ -960,7 +1202,13 @@ in {
 
     environment = {
       systemPackages = [ nsdPkg ];
-      etc."nsd/nsd.conf".source = "${configFile}/nsd.conf";
+      etc = if cfg.profile.enable then {
+        "nsd/nsd.conf".source = "${cfg.profile.path}/nsd.conf";
+        # The activation's sign that the running system is in profile mode.
+        "nsd/profile-path".text = cfg.profile.path;
+      } else {
+        "nsd/nsd.conf".source = "${configFile}/nsd.conf";
+      };
     };
 
     users = {
@@ -987,56 +1235,33 @@ in {
           startLimitBurst = 4;
           startLimitIntervalSec = 5 * 60; # 5 mins
           serviceConfig = {
-            ExecStart = "${nsdPkg}/sbin/nsd -d -c ${nsdEnv}/nsd.conf";
+            ExecStart = "${nsdPkg}/sbin/nsd -d -c ${envDir}/nsd.conf";
             StandardError = "null";
             PIDFile = pidFile;
             Restart = "always";
             RestartSec = "4s";
           };
 
-          preStart = let
-            copyZoneIncludes = concatLists (mapAttrsToList (zoneName:
-              { includes, ... }:
-              [ "mkdir -p ${stateDir}/zones/includes-${zoneName}" ] ++ (map
-                (file:
-                  "cp ${file} ${stateDir}/zones/includes-${zoneName}/${
-                    baseNameOf file
-                  }")) includes) cfg.zones);
-          in ''
-            rm -Rf "${stateDir}/private/"
-            rm -Rf "${stateDir}/tmp/"
+          preStart = if cfg.profile.enable then ''
+            if [ ! -x "${cfg.profile.path}/bin/nsd-prepare" ]; then
+              echo "nsd: no DNS profile at ${cfg.profile.path}; deploy it first" >&2
+              exit 1
+            fi
+            exec "${cfg.profile.path}/bin/nsd-prepare"
+          '' else ''
+            ${prepareState}
 
-            mkdir -m 0700 -p "${stateDir}/private"
-            mkdir -m 0700 -p "${stateDir}/tmp"
-            mkdir -m 0700 -p "${stateDir}/var"
-            mkdir -m 0711 -p "${stateDir}/run"
-
-            cat > "${stateDir}/don't touch anything in here" << EOF
-            Everything in this directory except NSD's state in var and dnssec
-            is automatically generated and will be purged and redeployed by
-            the nsd.service pre-start script.
-            EOF
-
-            chown ${username}:${username} -R "${stateDir}/private"
-            chown ${username}:${username} -R "${stateDir}/tmp"
-            chown ${username}:${username} -R "${stateDir}/var"
-            chown ${username}:${username} -R "${stateDir}/run"
-
-            rm -rf "${stateDir}/zones"
-            cp -rL "${nsdEnv}/zones" "${stateDir}/zones"
-
-            ${concatStringsSep "\n" copyZoneIncludes}
-
-            ${copyKeys}
-
-            ${rotateAndSignZones}
+            ${withZoneLock refreshZones}
           '';
         };
 
         nsd-dnssec = mkIf dnssec {
           description = "DNSSEC key rollover";
 
-          script = rotateAndSignZones;
+          script = if cfg.profile.enable then
+            ''exec "${cfg.profile.path}/bin/nsd-sign-zones"''
+          else
+            withZoneLock rotateAndSignZones;
 
           postStop = ''
             /run/current-system/systemd/bin/systemctl kill -s SIGHUP nsd.service
