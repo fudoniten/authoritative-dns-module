@@ -66,3 +66,27 @@ See module options for full configuration details.
 - `zone-to-zonefile.nix`: Zone to DNS file converter
 - `reverse-zone.nix`: Reverse DNS generator
 - `nsd.nix`: NSD service implementation (forked)
+
+## Profile mode
+
+By default nsd reads its config and zones from a store path written into
+`nsd.service`, so every record change is a new system generation that restarts
+nsd. With `services.fudo-nsd.profile.enable = true`, nsd.service, its preStart
+and the DNSSEC timer read everything through a profile link instead
+(`profile.path`, default `/nix/var/nix/profiles/dns`), and nothing in the system
+closure depends on zone data.
+
+Deploy `services.fudo-nsd.profile.package` to that path, for example as a
+deploy-rs profile with
+`activate.custom pkg "${pkg}/bin/nsd-profile-activate"`. The activation:
+
+- does nothing if the running system is not in profile mode yet (the system
+  deploy that follows starts nsd into the profile);
+- reloads nsd (fresh zones, re-signed, `SIGHUP`) when `nsd.conf` is unchanged,
+  and restarts it when it changed (a zone was added or removed, for instance);
+- checks that every zone this server is primary for answers with the serial in
+  its new zonefile, within 60 s, and fails otherwise so that deploy-rs can roll
+  the profile back.
+
+Deploy the profile before the first system generation that turns this on: in
+profile mode nsd refuses to start until the profile exists.
